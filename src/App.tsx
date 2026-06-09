@@ -175,6 +175,77 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
+  // Expanded local interactive states
+  const [exportHistory, setExportHistory] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("orbitiq_export_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activeThinkingNode, setActiveThinkingNode] = useState<number | null>(null);
+  const [isSliderHovered, setIsSliderHovered] = useState<boolean>(false);
+
+  // Automatically cycle through topological reasoning layers when simulating live inputs
+  useEffect(() => {
+    if (loading) {
+      let current = 1;
+      setActiveThinkingNode(current);
+      const interval = setInterval(() => {
+        current = current < 5 ? current + 1 : 1;
+        setActiveThinkingNode(current);
+      }, 700);
+      return () => clearInterval(interval);
+    } else {
+      setActiveThinkingNode(null);
+    }
+  }, [loading]);
+
+  const getNodeStatus = (nodeIndex: number) => {
+    if (loading) {
+      if (activeThinkingNode === nodeIndex) {
+        return {
+          label: "Thinking",
+          dotClass: "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse",
+          textClass: "text-amber-500 font-bold"
+        };
+      }
+      return {
+        label: "Standby",
+        dotClass: "bg-slate-400 opacity-60",
+        textClass: "text-slate-400"
+      };
+    }
+    if (simulatedData) {
+      if (nodeIndex === 3 && simulatedData?.studyTimeline?.mitigationApplied) {
+        return {
+          label: "Mitigating",
+          dotClass: "bg-rose-500 animate-ping",
+          textClass: "text-rose-500 font-bold"
+        };
+      }
+      return {
+        label: "Sync Ready",
+        dotClass: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]",
+        textClass: "text-emerald-500 font-semibold"
+      };
+    }
+    return {
+      label: "Offline",
+      dotClass: "bg-slate-500 opacity-45",
+      textClass: "text-slate-500"
+    };
+  };
+
+  const getConfidenceScore = (index: number) => {
+    let base = 98.4;
+    if (stressProfile === "HIGH_STRESS") base -= 3.2;
+    if (meetingHours > 20) base -= (meetingHours - 20) * 0.15;
+    if (prodDeploy) base -= 1.8;
+    return Number(Math.max(83.5, Math.min(99.9, base + (index * 0.4))).toFixed(1));
+  };
+
   const toggleTheme = () => {
     setTheme(prev => prev === "dark" ? "light" : "dark");
   };
@@ -199,6 +270,25 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    // Save download timestamp log to session list history
+    const nowStamp = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+    setExportHistory(prev => {
+      const updated = [nowStamp, ...prev].slice(0, 10); // Limit to last 10 exports
+      try {
+        localStorage.setItem("orbitiq_export_history", JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Storage write failed", e);
+      }
+      return updated;
+    });
   };
 
   // Recharts 4-week series computed dynamically to react to custom sliders
@@ -446,26 +536,69 @@ export default function App() {
               <hr className={cardBorderClass} />
 
               {/* Slider for Meeting workload */}
-              <div>
+              <div className="relative group/meeting bg-slate-500/5 p-3.5 rounded-xl border border-dashed border-slate-500/10 transition-colors">
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className={`text-xs font-medium ${labelClass}`}>Weekly Meeting Commitment</label>
-                  <span className={`text-xs font-mono font-bold ${meetingHours > 20 ? "text-rose-405 font-bold" : "text-emerald-405"}`}>
+                  <label className={`text-xs font-semibold mb-0.5 ${labelClass}`}>Weekly Meeting Commitment</label>
+                  <span className={`text-xs font-mono font-bold ${meetingHours > 20 ? "text-rose-405 font-bold animate-pulse" : "text-emerald-405"}`}>
                     {meetingHours} hrs/week
                   </span>
                 </div>
-                <input 
-                  id="meeting-hours-range"
-                  type="range" 
-                  min="5" 
-                  max="40" 
-                  step="0.5"
-                  value={meetingHours} 
-                  onChange={(e) => setMeetingHours(parseFloat(e.target.value))}
-                  className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-500 focus:outline-none ${theme === "dark" ? "bg-white/10" : "bg-slate-200"}`}
-                />
-                <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                
+                {/* Tooltip Wrapper */}
+                <div className="relative pt-6 pb-2"
+                  onMouseEnter={() => setIsSliderHovered(true)}
+                  onMouseLeave={() => setIsSliderHovered(false)}
+                >
+                  <AnimatePresence>
+                    {isSliderHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5, scale: 0.92 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 5, scale: 0.92 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-full mb-1 z-30 pointer-events-none -translate-x-1/2"
+                        style={{ left: `${((meetingHours - 5) / 35) * 100}%` }}
+                      >
+                        <div className={`px-2 py-1 rounded-md text-[10px] font-mono font-black border tracking-wider shadow-lg whitespace-nowrap ${
+                          meetingHours <= 15
+                            ? "bg-emerald-500 border-emerald-400 text-slate-950"
+                            : meetingHours <= 20
+                              ? "bg-yellow-500 border-yellow-400 text-slate-950"
+                              : meetingHours <= 28
+                                ? "bg-orange-500 border-orange-400 text-white"
+                                : "bg-rose-600 border-rose-500 text-white animate-bounce"
+                        }`}>
+                          Capacity Risk: {
+                            meetingHours <= 15 ? "LOW" :
+                            meetingHours <= 20 ? "MODERATE" :
+                            meetingHours <= 28 ? "HIGH" : "CRITICAL"
+                          }
+                        </div>
+                        {/* Caret pointing down */}
+                        <div className={`w-1.5 h-1.5 rotate-45 border-r border-b mx-auto -mt-1 border-inherit ${
+                          meetingHours <= 15 ? "bg-emerald-500" :
+                          meetingHours <= 20 ? "bg-yellow-500" :
+                          meetingHours <= 28 ? "bg-orange-500" : "bg-rose-600"
+                        }`} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <input 
+                    id="meeting-hours-range"
+                    type="range" 
+                    min="5" 
+                    max="40" 
+                    step="0.5"
+                    value={meetingHours} 
+                    onChange={(e) => setMeetingHours(parseFloat(e.target.value))}
+                    className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-500 focus:outline-none ${theme === "dark" ? "bg-white/10" : "bg-slate-200"}`}
+                  />
+                </div>
+
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
                   <span>5 Hrs (Nominal)</span>
-                  <span className={`${theme === "dark" ? "text-rose-400" : "text-rose-600 font-bold"}`}>Critic Limit: 20 Hrs</span>
+                  <span className={`${theme === "dark" ? "text-rose-455" : "text-rose-600 font-bold"}`}>Critic Limit: 20 Hrs</span>
                   <span>40 Hrs</span>
                 </div>
               </div>
@@ -521,67 +654,91 @@ export default function App() {
               {/* Agent 1 Node */}
               <div id="topology-node-1" className="relative flex items-start space-x-3">
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>1</div>
                 <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-200 border ${
+                  activeThinkingNode === 1 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
                   theme === "dark" 
                     ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
                     : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Learning Path Curator Agent</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(1).dotClass}`} />
+                      <span className={`text-xs font-bold ${activeThinkingNode === 1 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Learning Path Curator Agent</span>
+                    </div>
                     <span className="text-[9px] font-mono font-bold text-cyan-550 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded">MATCH IQ</span>
                   </div>
-                  <p className={`text-[11px] ${labelClass} mt-1 select-none`}>Bridges gaps to technical blueprints, outputs citations.</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Bridges gaps to technical blueprints, outputs citations.</p>
+                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(1).textClass}`}>{getNodeStatus(1).label}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Agent 2 Node */}
               <div id="topology-node-2" className="relative flex items-start space-x-3">
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>2</div>
                 <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-200 border ${
+                  activeThinkingNode === 2 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
                   theme === "dark" 
                     ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
                     : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Study Plan Generator</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(2).dotClass}`} />
+                      <span className={`text-xs font-bold ${activeThinkingNode === 2 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Study Plan Generator</span>
+                    </div>
                     <span className="text-[9px] font-mono font-bold text-indigo-550 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">PLANNER-EXEC</span>
                   </div>
-                  <p className={`text-[11px] ${labelClass} mt-1 select-none`}>Splits macro-level sequencing and daily training actions.</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Splits macro-level sequencing and daily training actions.</p>
+                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(2).textClass}`}>{getNodeStatus(2).label}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Agent 3 Node */}
               <div id="topology-node-3" className="relative flex items-start space-x-3">
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData?.studyTimeline?.mitigationApplied 
                     ? "bg-rose-950/80 text-rose-350 border-rose-500" 
                     : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>3</div>
                 <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 ${
+                  activeThinkingNode === 3 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
                   simulatedData?.studyTimeline?.mitigationApplied 
                     ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
                     : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20"
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">Engagement Critic Agent</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(3).dotClass}`} />
+                      <span className={`text-xs font-semibold ${activeThinkingNode === 3 ? "text-amber-500 font-extrabold animate-pulse" : "text-slate-200"}`}>Engagement Critic Agent</span>
+                    </div>
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
                       simulatedData?.studyTimeline?.mitigationApplied
-                        ? "text-rose-350 bg-rose-500/20 border border-rose-500/30"
+                        ? "text-rose-350 bg-rose-500/20 border border-rose-500/30 font-bold"
                         : "text-slate-350 bg-white/5 border border-white/10"
                     }`}>SELF-REFLECT</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 select-none">Checks Capacity metrics, scales back study matrix by 50% on strain.</p>
-                  {simulatedData?.studyTimeline?.mitigationApplied && (
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className="text-[11px] text-slate-400 select-none leading-tight">Checks Capacity metrics, scales back study matrix by 50% on strain.</p>
+                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(3).textClass}`}>{getNodeStatus(3).label}</span>
+                  </div>
+                  {simulatedData?.studyTimeline?.mitigationApplied && !loading && (
                     <motion.div 
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-2 text-[10px] text-rose-350 flex items-center space-x-1"
+                      className="mt-2 text-[10px] text-rose-355 flex items-center space-x-1"
                     >
-                      <AlertTriangle className="w-3 h-3 text-rose-450 inline" />
+                      <AlertTriangle className="w-3 h-3 text-rose-500 inline shrink-0 animate-bounce" />
                       <span>Critic loop triggered! Backlink mitigation active.</span>
                     </motion.div>
                   )}
@@ -591,32 +748,52 @@ export default function App() {
               {/* Agent 4 Node */}
               <div id="topology-node-4" className="relative flex items-start space-x-3">
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>4</div>
-                <div className="flex-1 bg-white/5 backdrop-blur-sm p-3.5 rounded-xl border border-white/10 shadow-md transition-all hover:bg-white/10 hover:border-white/20 duration-200">
+                <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
+                  activeThinkingNode === 4 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)] text-slate-200" :
+                  theme === "dark" 
+                    ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                    : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                }`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">Assessment Agent</span>
-                    <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded">VERIFIER</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(4).dotClass}`} />
+                      <span className={`text-xs font-semibold ${activeThinkingNode === 4 ? "text-amber-500 font-extrabold animate-pulse" : "text-inherit"}`}>Assessment Agent</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold">VERIFIER</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 select-none">Autonomously drafts exams and validates correctness securely.</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className="text-[11px] text-slate-400 select-none leading-tight">Autonomously drafts exams and validates correctness securely.</p>
+                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(4).textClass}`}>{getNodeStatus(4).label}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Agent 5 Node */}
               <div id="topology-node-5" className="relative flex items-start space-x-3">
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>5</div>
-                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-200 border ${
+                <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
+                  activeThinkingNode === 5 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
                   theme === "dark" 
                     ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
                     : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights Agent</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(5).dotClass}`} />
+                      <span className={`text-xs font-bold ${activeThinkingNode === 5 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights Agent</span>
+                    </div>
                     <span className="text-[9px] font-mono font-bold text-indigo-405 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">ANONYMOUS</span>
                   </div>
-                  <p className={`text-[11px] ${labelClass} mt-1 select-none`}>Analyzes team progress while completely stripping all employee PII.</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Analyzes team progress while completely stripping all employee PII.</p>
+                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(5).textClass}`}>{getNodeStatus(5).label}</span>
+                  </div>
                 </div>
               </div>
 
@@ -998,40 +1175,58 @@ export default function App() {
                           The **Primary Assessment Creator** drafted this test based on verified certifications, and the **Audit Verifier Node** dynamically audited correctness:
                         </p>
 
-                        {simulatedData.assessments.map((qa, i) => (
-                          <div key={i} className={`p-4 rounded-xl space-y-3.5 shadow-sm border ${innerCardClass}`}>
-                            <div className={`text-xs mt-1 leading-relaxed font-sans font-bold ${theme === "dark" ? "text-slate-100" : "text-slate-900"}`}>
-                              <span className="font-extrabold text-emerald-500 uppercase font-mono mr-1.5">QUESTION:</span>
-                              {qa.questionText}
-                            </div>
-                            
-                            <div className="space-y-1.5">
-                              {qa.options.map((opt, oIdx) => (
-                                <div 
-                                  key={oIdx} 
-                                  className={`p-2.5 rounded-lg text-xs flex items-center justify-between transition-all duration-200 ${
-                                    oIdx === qa.correctOptionIndex 
-                                      ? "bg-emerald-500/5 border border-emerald-500/30 text-emerald-500 font-bold shadow-[0_0_12px_rgba(16,185,129,0.15)]" 
-                                      : "bg-black/5 border border-black/5 text-slate-500"
-                                  }`}
-                                >
-                                  <span>{oIdx + 1}. {opt}</span>
-                                  {oIdx === qa.correctOptionIndex && (
-                                    <span className="text-[10px] uppercase font-mono bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-500 font-bold">Correct Selection</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                        {simulatedData.assessments.map((qa, i) => {
+                          const conf = getConfidenceScore(i);
+                          const confBadgeBg = conf >= 96 
+                            ? "bg-emerald-500/10 text-emerald-350 border-emerald-500/20" 
+                            : conf >= 92 
+                              ? "bg-amber-500/10 text-amber-350 border-amber-500/20" 
+                              : "bg-rose-500/10 text-rose-350 border-rose-500/20";
+                          return (
+                            <div key={i} className={`p-4 rounded-xl space-y-3.5 shadow-sm border ${innerCardClass}`}>
+                              
+                              {/* QA Pair Header & Auditor Certainty Badge */}
+                              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                <span className="font-extrabold text-[10px] text-emerald-500 tracking-wider font-mono">ASSESS ITEM #{i+1}</span>
+                                <span className={`text-[10px] font-mono font-black border px-2 py-0.5 rounded-full flex items-center space-x-1 ${confBadgeBg}`}>
+                                  <span>CERTAINTY:</span>
+                                  <span className="font-extrabold animate-pulse">{conf}%</span>
+                                </span>
+                              </div>
 
-                            <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg text-[11px] text-slate-400 flex items-start space-x-2 leading-relaxed">
-                              <Info className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                              <div>
-                                <span className="font-bold text-emerald-500 font-sans">Auditor Report: </span>
-                                {qa.verifierNotes}
+                              <div className={`text-xs mt-1 leading-relaxed font-sans font-bold ${theme === "dark" ? "text-slate-100" : "text-slate-900"}`}>
+                                <span className="font-extrabold text-emerald-500 uppercase font-mono mr-1.5">QUESTION:</span>
+                                {qa.questionText}
+                              </div>
+                              
+                              <div className="space-y-1.5">
+                                {qa.options.map((opt, oIdx) => (
+                                  <div 
+                                    key={oIdx} 
+                                    className={`p-2.5 rounded-lg text-xs flex items-center justify-between transition-all duration-200 ${
+                                      oIdx === qa.correctOptionIndex 
+                                        ? "bg-emerald-500/5 border border-emerald-500/30 text-emerald-500 font-bold shadow-[0_0_12px_rgba(16,185,129,0.15)]" 
+                                        : "bg-black/5 border border-black/5 text-slate-500"
+                                    }`}
+                                  >
+                                    <span>{oIdx + 1}. {opt}</span>
+                                    {oIdx === qa.correctOptionIndex && (
+                                      <span className="text-[10px] uppercase font-mono bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-500 font-bold">Correct Selection</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg text-[11px] text-slate-400 flex items-start space-x-2 leading-relaxed">
+                                <Info className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold text-emerald-500 font-sans">Auditor Report: </span>
+                                  {qa.verifierNotes}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       <div className="pt-4 border-t border-white/10 mt-4 flex items-center justify-between text-[11px] text-slate-400">
@@ -1115,6 +1310,39 @@ export default function App() {
                               </div>
                             ))}
                           </div>
+
+                          {/* Export History Log List */}
+                          <div className="pt-4 border-t border-dashed border-slate-500/15 mt-4">
+                            <span className="text-[10px] text-slate-500 uppercase font-mono block mb-1.5 flex items-center justify-between">
+                              <span>Session Export Log History:</span>
+                              <span className="text-[9px] text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-1.5 py-0.2 rounded font-mono uppercase">
+                                {exportHistory.length} downloads
+                              </span>
+                            </span>
+                            {exportHistory.length === 0 ? (
+                              <p className="text-[10px] text-slate-500 italic">No JSON reports exported in current browser session yet.</p>
+                            ) : (
+                              <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 font-mono text-[9px]">
+                                {exportHistory.map((timestamp, index) => (
+                                  <div 
+                                    key={index}
+                                    className={`p-1.5 rounded flex items-center justify-between border ${
+                                      theme === "dark" 
+                                        ? "bg-white/5 border-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/10" 
+                                        : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                      <span>Team_Compliance_Report_{simulatedData.teamReport.teamId || "TEAM-B"}.json</span>
+                                    </div>
+                                    <span className="font-semibold shrink-0 text-slate-550">{timestamp}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
                         </div>
                       </div>
 
