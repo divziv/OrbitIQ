@@ -1,0 +1,6 @@
+{
+  "name": "OrbitIQ Multi-Agent Engine",
+  "description": "OrbitIQ is a capacity-aware enterprise upskilling and multi-agent orchestration engine featuring 5 reasoning agents for certification curation, personalized study planning, conflict-aware calendar adjustments, grounded assessments, and manager insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
