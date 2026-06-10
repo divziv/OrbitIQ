@@ -5,6 +5,8 @@ import {
   Calendar, 
   CheckCircle, 
   TrendingUp, 
+  TrendingDown,
+  Minus,
   AlertTriangle, 
   Terminal, 
   BookOpen, 
@@ -163,6 +165,7 @@ export default function App() {
   const [employeeId, setEmployeeId] = useState<string>("EMP-102");
   const [stressProfile, setStressProfile] = useState<string>("HIGH_STRESS");
   const [meetingHours, setMeetingHours] = useState<number>(24.5);
+  const [prevMeetingHours, setPrevMeetingHours] = useState<number>(24.5);
   const [prodDeploy, setProdDeploy] = useState<boolean>(true);
   
   // Real execution results state
@@ -293,6 +296,29 @@ export default function App() {
     });
   };
 
+  const handleDownloadWorkIQCsv = () => {
+    if (!simulatedData) return;
+    const telemetry = simulatedData.telemetryIq;
+    const csvContent = [
+      ["Metric", "Value", "Week Reference"],
+      ["Reporting Week", telemetry.reportingWeek, "Current"],
+      ["Meeting Hours", meetingHours.toString(), "Current"],
+      ["Deep Work Hours", telemetry.deepWorkHours.toString(), "Current"],
+      ["Incident Tickets Open", telemetry.averageIncidentCount.toString(), "Current"],
+      [],
+      ["Historical Balancing", "Meeting Hours", "Deep Work Hours"],
+      ...rechartData4Weeks.map(item => [item.week, item["Meeting Hours"].toString(), item["Deep Work Hours"].toString()])
+    ].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `WorkIQ_Workload_Telemetry_${telemetry.reportingWeek}.csv`);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportToPDF = () => {
     window.print();
   };
@@ -410,6 +436,7 @@ export default function App() {
       });
       const data = await response.json();
       if (data.success) {
+        setPrevMeetingHours(meetingHours);
         setSimulatedData(data.structuredState);
         setPythonLogs(data.pythonLogs);
       }
@@ -1007,15 +1034,25 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                                       {/* Work IQ Weekly Workload Telemetry */}
+                                                          {/* Work IQ Weekly Workload Telemetry */}
                     <div id="work-telemetry-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative overflow-hidden`}>
-                      <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4 flex-wrap gap-2">
                         <div className="flex items-center space-x-2">
                           <Calendar className={`w-4 h-4 ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
                           <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>WorkIQ: Live Telemetry Sensors</h4>
                         </div>
-                        <span className="text-[10px] font-mono text-indigo-300 bg-indigo-750/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-lg select-none">WEEKLY METRIC</span>
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            id="btn-download-telemetry-csv"
+                            onClick={handleDownloadWorkIQCsv}
+                            className="px-2 py-0.5 text-[9px] font-bold bg-cyan-600 hover:bg-cyan-550 text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow"
+                            title="Export raw workload telemetry to Microsoft Excel, Google Sheets, or any CSV reader"
+                          >
+                            <Download className="w-2.5 h-2.5" />
+                            <span>Download CSV</span>
+                          </button>
+                          <span className="text-[10px] font-mono text-indigo-300 bg-indigo-750/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-lg select-none">WEEKLY METRIC</span>
+                        </div>
                       </div>
 
                       <div className="space-y-4">
@@ -1028,9 +1065,33 @@ export default function App() {
                         <div>
                           <div className="flex justify-between items-center text-xs mb-1.5">
                             <span className={labelClass}>Meeting Hours Threshold</span>
-                            <span className={`font-mono text-xs ${meetingHours > 20 ? "text-rose-455 font-bold" : "text-emerald-405 font-semibold"}`}>
-                              {meetingHours}h / 40h workweek
-                            </span>
+                            <div className="flex items-center space-x-1.5">
+                              <span className={`font-mono text-xs ${meetingHours > 20 ? "text-rose-455 font-bold" : "text-emerald-405 font-semibold"}`}>
+                                {meetingHours}h / 40h workweek
+                              </span>
+                              
+                              {/* Dynamic Trend Indicator relative to previous simulated state */}
+                              <span className="flex items-center shrink-0 select-none">
+                                {meetingHours > prevMeetingHours && (
+                                  <span className="inline-flex items-center text-rose-400 font-bold text-[10px]" title={`Increasing pressure: +${(meetingHours - prevMeetingHours).toFixed(1)}h higher than previous configuration (${prevMeetingHours}h)`}>
+                                    <TrendingUp className="w-3 h-3 mr-0.5 text-rose-500 animate-pulse" />
+                                    <span>+{(meetingHours - prevMeetingHours).toFixed(1)}h</span>
+                                  </span>
+                                )}
+                                {meetingHours < prevMeetingHours && (
+                                  <span className="inline-flex items-center text-emerald-400 font-bold text-[10px]" title={`Decreased pressure: ${(prevMeetingHours - meetingHours).toFixed(1)}h lower than previous configuration (${prevMeetingHours}h)`}>
+                                    <TrendingDown className="w-3 h-3 mr-0.5 text-emerald-500" />
+                                    <span>-${(prevMeetingHours - meetingHours).toFixed(1)}h</span>
+                                  </span>
+                                )}
+                                {meetingHours === prevMeetingHours && (
+                                  <span className="inline-flex items-center text-slate-400 text-[10px]" title="Workload is stable relative to last simulated load state">
+                                    <Minus className="w-3 h-3 mr-0.5" />
+                                    <span>Stable</span>
+                                  </span>
+                                )}
+                              </span>
+                            </div>
                           </div>
                           <div className={`w-full rounded-full h-2 overflow-hidden border ${theme === "dark" ? "bg-black/30 border-white/10" : "bg-slate-200 border-slate-300"}`}>
                             <div 
@@ -1077,7 +1138,13 @@ export default function App() {
                             </div>
                           </div>
                           
-                          <div className={`h-[140px] w-full rounded-xl p-2 relative ${theme === "dark" ? "bg-black/25 border border-white/5" : "bg-slate-50 border border-slate-200"}`}>
+                          <motion.div 
+                            key={`chart_reveal_${simulatedData.telemetryIq.reportingWeek}_${meetingHours}_${prodDeploy}`}
+                            initial={{ opacity: 0, scale: 0.98, y: 5 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: "easeOut" }}
+                            className={`h-[140px] w-full rounded-xl p-2 relative ${theme === "dark" ? "bg-black/25 border border-white/5" : "bg-slate-50 border border-slate-200"}`}
+                          >
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={rechartData4Weeks} margin={{ top: 5, right: 5, left: -28, bottom: -5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
@@ -1111,15 +1178,30 @@ export default function App() {
                                     return null;
                                   }}
                                 />
-                                <Bar dataKey="Meeting Hours" fill={theme === "dark" ? "#22d3ee" : "#0284c7"} radius={[3, 3, 0, 0]} />
-                                <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} />
+                                <Bar dataKey="Meeting Hours" fill={theme === "dark" ? "#22d3ee" : "#0284c7"} radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950} />
+                                <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950} />
                               </BarChart>
                             </ResponsiveContainer>
+                          </motion.div>
+
+                          {/* Non-Technical Manager Legend & Tooltip Guidance */}
+                          <div className={`mt-3 p-2.5 rounded-xl border text-[10px] leading-relaxed flex items-start space-x-2 transition-all ${
+                            theme === "dark" 
+                              ? "bg-indigo-500/5 border-indigo-500/10 text-slate-400" 
+                              : "bg-indigo-50/50 border-indigo-100 text-slate-650"
+                          }`}>
+                            <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold text-indigo-400 font-sans">Manager Playbook Guide: </span>
+                              The bars represent cognitive block distribution. 
+                              <span className="text-cyan-400 font-semibold font-mono"> Meeting (Cyan)</span> represents real-time coordination cost, while 
+                              <span className="text-emerald-400 font-semibold font-mono"> Deep Work (Green)</span> is locked-down standalone engineering focus allocated for curriculum upskilling.
+                            </div>
                           </div>
                         </div>
 
                       </div>
-                    </div>
+                    </div>   </div>
                   </div>
 
                   {/* Interactive Dynamic Study Timeline View */}
