@@ -24,7 +24,11 @@ import {
   ArrowRight,
   User,
   Download,
-  List
+  List,
+  Share2,
+  X,
+  ExternalLink,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -34,7 +38,8 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  Cell
 } from "recharts";
 
 const MODULE_DETAILS_REGISTRY: Record<string, {
@@ -179,6 +184,10 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [timelineViewMode, setTimelineViewMode] = useState<"list" | "calendar">("list");
+  const [compareHistorical, setCompareHistorical] = useState<boolean>(false);
+  const [isTelemetryExpanded, setIsTelemetryExpanded] = useState<boolean>(false);
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [shareCopied, setShareCopied] = useState<boolean>(false);
 
   // Expanded local interactive states
   const [exportHistory, setExportHistory] = useState<string[]>(() => {
@@ -380,21 +389,29 @@ export default function App() {
       week: "W21",
       "Meeting Hours": Number((meetingHours * 0.85).toFixed(1)),
       "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.85) - (prodDeploy ? 6 : 0)).toFixed(1)),
+      "Hist. Meeting": 28.0,
+      "Hist. Deep Work": 12.0,
     },
     {
       week: "W22",
       "Meeting Hours": Number((meetingHours * 1.15).toFixed(1)),
       "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.15) - (prodDeploy ? 11 : 0)).toFixed(1)),
+      "Hist. Meeting": 32.5,
+      "Hist. Deep Work": 7.5,
     },
     {
       week: "W23",
       "Meeting Hours": Number((meetingHours * 0.95).toFixed(1)),
       "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.95) - (prodDeploy ? 8 : 0)).toFixed(1)),
+      "Hist. Meeting": 29.0,
+      "Hist. Deep Work": 11.0,
     },
     {
       week: "W24 (Live)",
       "Meeting Hours": meetingHours,
       "Deep Work Hours": simulatedData.telemetryIq.deepWorkHours,
+      "Hist. Meeting": 30.5,
+      "Hist. Deep Work": 9.5,
     },
   ] : [];
 
@@ -1041,7 +1058,58 @@ export default function App() {
                           <Calendar className={`w-4 h-4 ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
                           <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>WorkIQ: Live Telemetry Sensors</h4>
                         </div>
-                        <div className="flex items-center space-x-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Period-over-Period Compare Toggle */}
+                          <button
+                            id="btn-toggle-compare-historical"
+                            onClick={() => setCompareHistorical(!compareHistorical)}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 border ${
+                              compareHistorical 
+                                ? "bg-amber-500/20 border-amber-500/50 text-amber-300" 
+                                : theme === "dark"
+                                  ? "bg-white/5 border-white/10 text-slate-400 hover:text-white"
+                                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
+                            }`}
+                            title="Overlay unmitigated previous month cycle baseline telemetry"
+                          >
+                            <Layers className="w-2.5 h-2.5" />
+                            <span>{compareHistorical ? "Compare On" : "Compare"}</span>
+                          </button>
+
+                          {/* Fullscreen Expand Button */}
+                          <button
+                            id="btn-expand-telemetry-view"
+                            onClick={() => setIsTelemetryExpanded(true)}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 border ${
+                              theme === "dark"
+                                ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10"
+                                : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                            }`}
+                            title="Open granular high-fidelity period inspection viewer"
+                          >
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            <span>Expand</span>
+                          </button>
+
+                          {/* Share Report Button */}
+                          <button
+                            id="btn-share-telemetry"
+                            onClick={() => {
+                              setShowShareModal(true);
+                              setShareCopied(false);
+                            }}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 border ${
+                              theme === "dark"
+                                ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10"
+                                : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                            }`}
+                            title="Get a shareable snapshot link for this workload trajectory"
+                          >
+                            <Share2 className="w-2.5 h-2.5" />
+                            <span>Share</span>
+                          </button>
+
+                          {/* Download CSV */}
                           <button
                             id="btn-download-telemetry-csv"
                             onClick={handleDownloadWorkIQCsv}
@@ -1049,9 +1117,8 @@ export default function App() {
                             title="Export raw workload telemetry to Microsoft Excel, Google Sheets, or any CSV reader"
                           >
                             <Download className="w-2.5 h-2.5" />
-                            <span>Download CSV</span>
+                            <span>CSV</span>
                           </button>
-                          <span className="text-[10px] font-mono text-indigo-300 bg-indigo-750/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-lg select-none">WEEKLY METRIC</span>
                         </div>
                       </div>
 
@@ -1125,7 +1192,14 @@ export default function App() {
                         {/* Recharts Bar Chart: Weekly Meeting vs. Deep Work 4-Week Balance */}
                         <div className="pt-2 border-t border-black/10">
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-[11px] font-bold uppercase text-indigo-405">4-Week Balance Telemetry</span>
+                            <span className="text-[11px] font-bold uppercase text-indigo-405 flex items-center gap-1.5">
+                              4-Week Balance Telemetry
+                              {rechartData4Weeks.some(w => w["Meeting Hours"] > 20) && (
+                                <span className="bg-rose-500/10 text-rose-405 border border-rose-500/20 text-[8.5px] px-1 py-0.1 rounded uppercase animate-pulse select-none" title="Anomalous meeting coordinate loads detected (>20h threshold)">
+                                  Anomaly Detected
+                                </span>
+                              )}
+                            </span>
                             <div className="flex items-center space-x-2 text-[9px] font-mono">
                               <span className="flex items-center space-x-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
@@ -1139,7 +1213,7 @@ export default function App() {
                           </div>
                           
                           <motion.div 
-                            key={`chart_reveal_${simulatedData.telemetryIq.reportingWeek}_${meetingHours}_${prodDeploy}`}
+                            key={`chart_reveal_${simulatedData.telemetryIq.reportingWeek}_${meetingHours}_${prodDeploy}_${compareHistorical}`}
                             initial={{ opacity: 0, scale: 0.98, y: 5 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             transition={{ duration: 0.35, ease: "easeOut" }}
@@ -1147,6 +1221,13 @@ export default function App() {
                           >
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={rechartData4Weeks} margin={{ top: 5, right: 5, left: -28, bottom: -5 }}>
+                                <defs>
+                                  <filter id="anomaly-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                                    <feColorMatrix type="matrix" values="1 0 0 0 1  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                  </filter>
+                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
                                 <XAxis 
                                   dataKey="week" 
@@ -1164,22 +1245,52 @@ export default function App() {
                                   content={({ active, payload, label }) => {
                                     if (active && payload && payload.length) {
                                       return (
-                                        <div className={`p-2.5 rounded-lg border text-[10px] font-mono shadow ${
+                                        <div className={`p-2.5 rounded-lg border text-[10px] font-mono shadow-xl ${
                                           theme === "dark" 
                                             ? "bg-slate-900 border-white/10 text-slate-100" 
                                             : "bg-white border-slate-200 text-slate-900"
                                         }`}>
-                                          <p className="font-bold border-b border-white/10 pb-0.5 mb-1 text-inherit">{label}</p>
-                                          <p className="text-cyan-500">Meeting: {payload[0].value}h</p>
-                                          <p className="text-emerald-500">Deep Work: {payload[1].value}h</p>
+                                          <p className="font-bold border-b border-black/10 pb-0.5 mb-1 text-inherit">{label}</p>
+                                          <p className="text-cyan-400">Meeting: {payload[0]?.value}h</p>
+                                          <p className="text-emerald-400">Deep Work: {payload[1]?.value}h</p>
+                                          {payload.length > 2 && (
+                                            <>
+                                              <p className="text-amber-500 border-t border-black/10 mt-1 pt-0.5">Hist. Meeting: {payload[2]?.value}h</p>
+                                              <p className="text-green-500">Hist. Deep Work: {payload[3]?.value}h</p>
+                                            </>
+                                          )}
                                         </div>
                                       );
                                     }
                                     return null;
                                   }}
                                 />
-                                <Bar dataKey="Meeting Hours" fill={theme === "dark" ? "#22d3ee" : "#0284c7"} radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950} />
+                                
+                                {/* Meetings Bar Series with Anomaly Glow and High-Fidelity highlight */}
+                                <Bar dataKey="Meeting Hours" radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950}>
+                                  {rechartData4Weeks.map((entry, index) => {
+                                    const isAnomaly = entry["Meeting Hours"] > 20;
+                                    const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
+                                    return (
+                                      <Cell 
+                                        key={`cell-meet-${index}`} 
+                                        fill={isAnomaly ? "#f43f5e" : baseColor}
+                                        filter={isAnomaly ? "url(#anomaly-glow)" : undefined}
+                                        className={isAnomaly ? "animate-pulse" : ""}
+                                      />
+                                    );
+                                  })}
+                                </Bar>
+                                
                                 <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950} />
+                                
+                                {/* Historical Data Overlay */}
+                                {compareHistorical && (
+                                  <>
+                                    <Bar dataKey="Hist. Meeting" fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} strokeWidth={1} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                                    <Bar dataKey="Hist. Deep Work" fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} stroke={theme === "dark" ? "#10b981" : "#16a34a"} strokeWidth={1} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                                  </>
+                                )}
                               </BarChart>
                             </ResponsiveContainer>
                           </motion.div>
@@ -1195,7 +1306,12 @@ export default function App() {
                               <span className="font-bold text-indigo-400 font-sans">Manager Playbook Guide: </span>
                               The bars represent cognitive block distribution. 
                               <span className="text-cyan-400 font-semibold font-mono"> Meeting (Cyan)</span> represents real-time coordination cost, while 
-                              <span className="text-emerald-400 font-semibold font-mono"> Deep Work (Green)</span> is locked-down standalone engineering focus allocated for curriculum upskilling.
+                              <span className="text-emerald-400 font-semibold font-mono"> Deep Work (Green)</span> is focus allocated for curriculum upskilling.
+                              {rechartData4Weeks.some(w => w["Meeting Hours"] > 20) && (
+                                <p className="mt-1 text-[#f43f5e] font-extrabold font-mono">
+                                  ⚠️ Red-glowing bars highlight anomalous weeks exceeding 20h of meetings!
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1883,7 +1999,7 @@ export default function App() {
 
                 {/* Source Citation */}
                 <div className={`p-4 rounded-xl border flex items-start space-x-3.5 ${
-                  theme === "dark" ? "bg-white/5 border-white/5 text-slate-300" : "bg-slate-50 border-slate-150 text-slate-750"
+                  theme === "dark" ? "bg-white/5 border-white/5 text-slate-300" : "bg-slate-50 border-slate-150 text-slate-755"
                 }`}>
                   <FileText className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5" />
                   <div>
@@ -1892,6 +2008,398 @@ export default function App() {
                       {MODULE_DETAILS_REGISTRY[selectedModuleId]?.citation || "MS-FOUNDRY-IQ Reference Codebook, Sec 10.4"}
                     </p>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Share Simulator Report Modal */}
+        {showShareModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowShareModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm shadow"
+            />
+            
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className={`relative w-full max-w-md rounded-2xl p-6 shadow-2xl border backdrop-blur-xl overflow-hidden z-10 ${
+                theme === "dark" 
+                  ? "bg-slate-900/95 border-white/10 text-white" 
+                  : "bg-white/95 border-slate-200 text-slate-900"
+              }`}
+            >
+              <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500" />
+              
+              <div className="flex items-center justify-between pb-3 border-b border-black/10 mb-4 pl-2">
+                <div className="flex items-center space-x-2">
+                  <Share2 className="w-4 h-4 text-indigo-400" />
+                  <h4 className="text-sm font-extrabold tracking-tight">
+                    Share Simulation Report
+                  </h4>
+                </div>
+                <button
+                  id="close-share-modal"
+                  onClick={() => setShowShareModal(false)}
+                  className={`text-xs p-1.5 rounded-lg border font-mono transition-all font-semibold active:scale-95 cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-slate-400"
+                      : "bg-slate-100 border-slate-200 hover:bg-slate-200 hover:text-slate-900 text-slate-600"
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 pl-2 font-sans text-xs">
+                <p className={theme === "dark" ? "text-slate-300" : "text-slate-605"}>
+                  Copy and share this direct access link to distribute this simulated WorkTelemetry & OrbitIQ schema profile configuration.
+                </p>
+
+                <div className={`p-3 rounded-xl border font-mono ${
+                  theme === "dark" ? "bg-black/30 border-white/15 text-slate-300" : "bg-slate-50 border-slate-250 text-slate-700"
+                }`}>
+                  <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                    <span>LAUNCHER TARGET PARAMETERS:</span>
+                    <span className="text-emerald-450 uppercase animate-pulse">Ready</span>
+                  </div>
+                  <div>Employee: {simulatedData?.employeeId || "N/A"}</div>
+                  <div>Stress Profile: {stressProfile === "HIGH_STRESS" ? "High Cognitive Stress" : "Normal Capacity"}</div>
+                  <div>Reporting week: {simulatedData?.telemetryIq?.reportingWeek || "N/A"}</div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.protocol}//${window.location.host}?simulationId=${simulatedData?.studyTimeline?.timelineId || "OrbitIQ"}&emp=${employeeId}&profile=${stressProfile}`}
+                    className={`flex-1 p-2.5 rounded-xl border text-xs font-mono select-all transition-all ${
+                      theme === "dark" 
+                        ? "bg-black/30 border-white/10 text-cyan-300" 
+                        : "bg-slate-100 border-slate-200 text-cyan-800"
+                    }`}
+                  />
+                  <button
+                    id="btn-copy-share-url"
+                    onClick={() => {
+                      const shareUrl = `${window.location.protocol}//${window.location.host}?simulationId=${simulatedData?.studyTimeline?.timelineId || "OrbitIQ"}&emp=${employeeId}&profile=${stressProfile}`;
+                      navigator.clipboard.writeText(shareUrl);
+                      setShareCopied(true);
+                      setTimeout(() => setShareCopied(false), 2000);
+                    }}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center space-x-1.5 cursor-pointer ${
+                      shareCopied
+                        ? "bg-emerald-600 border-emerald-500 text-white animate-pulse"
+                        : "bg-cyan-600 border-cyan-550 text-white hover:bg-cyan-550"
+                    }`}
+                  >
+                    {shareCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 shrink-0" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Fullscreen Expand View Telemetry Modal */}
+        {isTelemetryExpanded && simulatedData && (
+          <div className="fixed inset-0 z-55 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTelemetryExpanded(false)}
+              className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            />
+            
+            {/* Large Modal Body */}
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className={`relative w-full max-w-4xl rounded-2xl p-6 shadow-2xl border backdrop-blur-xl z-10 max-h-[90vh] overflow-y-auto ${
+                theme === "dark" 
+                  ? "bg-slate-950/95 border-white/10 text-white text-slate-100" 
+                  : "bg-white/95 border-slate-200 text-slate-900"
+              }`}
+            >
+              <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500" />
+              
+              <div className="flex items-center justify-between pb-3 border-b border-black/10 mb-5 pl-2 flex-wrap gap-3">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-5 h-5 text-cyan-400" />
+                  <h4 className="text-sm font-extrabold tracking-tight uppercase">
+                    WorkIQ Telemetry: Live Period Analytics
+                  </h4>
+                </div>
+                <div className="flex items-center space-x-2 font-sans">
+                  {/* Expanded comparative toggle */}
+                  <button
+                    id="btn-expanded-compare-pop"
+                    onClick={() => setCompareHistorical(!compareHistorical)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center space-x-1 border cursor-pointer active:scale-95 transition-all ${
+                      compareHistorical 
+                        ? "bg-amber-600 border-amber-500 text-white" 
+                        : theme === "dark"
+                          ? "bg-white/5 border-white/10 text-slate-400 hover:text-slate-100"
+                          : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>{compareHistorical ? "PoP Overlay Enabled" : "Overlay Historical Cycle"}</span>
+                  </button>
+                  <button
+                    id="btn-modal-download-csv"
+                    onClick={handleDownloadWorkIQCsv}
+                    className="px-2.5 py-1.5 text-xs font-bold bg-cyan-600 hover:bg-cyan-550 text-white rounded-lg flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download CSV</span>
+                  </button>
+                  <button
+                    id="close-telemetry-expanded-modal"
+                    onClick={() => setIsTelemetryExpanded(false)}
+                    className={`text-xs px-2.5 py-1.5 rounded-lg border font-mono transition-all font-semibold active:scale-95 cursor-pointer flex items-center space-x-1 ${
+                      theme === "dark"
+                        ? "bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-slate-400"
+                        : "bg-slate-100 border-slate-200 hover:bg-slate-200 hover:text-slate-900 text-slate-600"
+                    }`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>ESC</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pl-2 font-sans">
+                {/* Visualizer Chart Column */}
+                <div className="md:col-span-7 space-y-4">
+                  <div className={`p-4 rounded-xl border ${
+                    theme === "dark" ? "bg-black/35 border-white/10" : "bg-slate-50 border-slate-205"
+                  }`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <div>
+                        <span className="text-[10px] font-mono uppercase text-cyan-400 block font-extrabold tracking-wider">Live Workspace Monitors</span>
+                        <h5 className="text-xs font-bold font-sans">4-Week Workload Balance Chart</h5>
+                      </div>
+                    </div>
+
+                    <div className="h-[250px] w-full mt-3">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={rechartData4Weeks} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                          <defs>
+                            <filter id="anomaly-glow-modal" x="-20%" y="-20%" width="140%" height="140%">
+                              <feGaussianBlur stdDeviation="3.5" result="blur" />
+                              <feColorMatrix type="matrix" values="1 0 0 0 1  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" />
+                              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
+                          <XAxis 
+                            dataKey="week" 
+                            tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10 }}
+                            axisLine={false} 
+                            tickLine={false} 
+                          />
+                          <YAxis 
+                            tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10 }}
+                            axisLine={false} 
+                            tickLine={false} 
+                          />
+                          <Tooltip 
+                            cursor={{ fill: "transparent" }}
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                return (
+                                  <div className={`p-3 rounded-xl border text-xs font-mono shadow-2xl ${
+                                    theme === "dark" 
+                                      ? "bg-slate-950 border-white/15 text-slate-100" 
+                                      : "bg-white border-slate-250 text-slate-900"
+                                  }`}>
+                                    <p className="font-extrabold border-b border-black/10 pb-1 mb-1.5 text-inherit">{label}</p>
+                                    <p className="text-cyan-400 font-bold">Meeting: {payload[0]?.value}h</p>
+                                    <p className="text-emerald-450 font-bold">Deep Work: {payload[1]?.value}h</p>
+                                    {payload.length > 2 && (
+                                      <>
+                                        <p className="text-amber-500 font-extrabold border-t border-black/10 mt-1 pt-1 opacity-90">Hist. Meeting: {payload[2]?.value}h</p>
+                                        <p className="text-green-500 font-extrabold">Hist. Deep Work: {payload[3]?.value}h</p>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          
+                          {/* Meetings Bar Series with Anomaly Glow and High-Fidelity highlight */}
+                          <Bar dataKey="Meeting Hours" radius={[3, 3, 0, 0]}>
+                            {rechartData4Weeks.map((entry, index) => {
+                              const isAnomaly = entry["Meeting Hours"] > 20;
+                              const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
+                              return (
+                                <Cell 
+                                  key={`cell-modal-meet-${index}`} 
+                                  fill={isAnomaly ? "#f43f5e" : baseColor}
+                                  filter={isAnomaly ? "url(#anomaly-glow-modal)" : undefined}
+                                />
+                              );
+                            })}
+                          </Bar>
+                          <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} />
+                          
+                          {/* Historical Series (Overlay Mode) */}
+                          {compareHistorical && (
+                            <>
+                              <Bar dataKey="Hist. Meeting" fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} strokeWidth={1.5} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                              <Bar dataKey="Hist. Deep Work" fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} stroke={theme === "dark" ? "#10b981" : "#16a34a"} strokeWidth={1.5} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                            </>
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="flex items-center space-x-4 text-[10px] font-mono justify-center mt-3.5 flex-wrap gap-2">
+                      <span className="flex items-center space-x-1.5 ">
+                        <span className="w-2.5 h-2.5 rounded bg-cyan-400 inline-block" />
+                        <span className={labelClass}>Meeting (Current Cycle)</span>
+                      </span>
+                      <span className="flex items-center space-x-1.5">
+                        <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
+                        <span className={labelClass}>Deep Work (Current Cycle)</span>
+                      </span>
+                      {compareHistorical && (
+                        <>
+                          <span className="flex items-center space-x-1.5">
+                            <span className="w-2.5 h-2.5 rounded bg-cyan-900 border-dashed border border-cyan-400 inline-block animate-pulse" />
+                            <span className={labelClass}>Hist. Meeting</span>
+                          </span>
+                          <span className="flex items-center space-x-1.5">
+                            <span className="w-2.5 h-2.5 rounded bg-emerald-950 border-dashed border border-emerald-400 inline-block" />
+                            <span className={labelClass}>Hist. Deep Work</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Manager Playbook guide */}
+                  <div className={`p-4 rounded-xl border text-xs leading-relaxed ${
+                    theme === "dark" ? "bg-indigo-500/5 border-indigo-500/10 text-slate-300" : "bg-indigo-50/50 border-indigo-100 text-slate-700"
+                  }`}>
+                    <div className="flex items-center space-x-2 font-bold text-indigo-400 mb-1.5">
+                      <Info className="w-4 h-4 shrink-0" />
+                      <span>COGNITIVE BALANCE FRAMEWORK</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      Continuous research indicates that tech employees subjected to greater than <span className="font-extrabold text-[#f43f5e]">20 hours of weekly meetings</span> suffer extreme cognitive context overheads, dropping Deep Work synthesis by over 60%. OrbitIQ provides dynamic meeting mitigation thresholds enabling healthy upskilling balances.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Audit, Metadata & Anomaly Lists Column */}
+                <div className="md:col-span-5 space-y-4">
+                  
+                  {/* Period-over-period Statistics Table */}
+                  <div className={`p-4 rounded-xl border ${
+                    theme === "dark" ? "bg-black/20 border-white/10" : "bg-slate-50 border-slate-200"
+                  }`}>
+                    <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2.5 font-mono">Telemetry Trajectory Audit</h5>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-black/10">
+                        <span className="text-slate-400">Target Employee / Role ID:</span>
+                        <span className="font-mono font-bold">{simulatedData.employeeId}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-black/10">
+                        <span className="text-slate-400">Current Assigned Team ID:</span>
+                        <span className="font-mono font-bold">{simulatedData.fabricIq.assignedTeamId}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-black/10">
+                        <span className="text-slate-400">Dynamic Meeting Config:</span>
+                        <span className={`font-mono font-bold ${meetingHours > 20 ? "text-rose-400 animate-pulse" : "text-emerald-400"}`}>{meetingHours} hours/week</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-black/10">
+                        <span className="text-slate-400">Simulated Deep Work Ratio:</span>
+                        <span className="font-mono font-bold text-cyan-400">{((simulatedData.telemetryIq.deepWorkHours / 40) * 100).toFixed(0)}% focus</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-slate-400">Critical Change Logs:</span>
+                        <span className="font-bold flex items-center text-rose-500">{prodDeploy ? "Active Deployment Window" : "None"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HIGH METRICS ALERT - ANOMALY DETECTION LIST */}
+                  <div className={`p-4 rounded-xl border ${
+                    theme === "dark" ? "bg-rose-500/5 border-rose-500/10 text-slate-200" : "bg-rose-50/50 border-rose-100 text-slate-800"
+                  }`}>
+                    <div className="flex items-center space-x-2 text-rose-400 font-bold text-xs uppercase font-mono tracking-wide mb-3">
+                      <AlertTriangle className="w-4 h-4 shrink-0 animate-pulse text-rose-500" />
+                      <span>Telemetry Risk Sensors & Anomalies</span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {rechartData4Weeks.map((weekItem, idx) => {
+                        const hasAnomaly = weekItem["Meeting Hours"] > 20;
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`p-2.5 rounded-lg border text-[11px] flex items-start justify-between ${
+                              hasAnomaly 
+                                ? theme === "dark"
+                                  ? "bg-rose-500/10 border-rose-500/25 red-glow-glow shadow-md shadow-rose-950/20"
+                                  : "bg-rose-100/55 border-rose-220 shadow-sm"
+                                : theme === "dark"
+                                  ? "bg-emerald-500/5 border-emerald-500/10 text-slate-400"
+                                  : "bg-emerald-50/50 border-emerald-100 text-slate-655"
+                            }`}
+                          >
+                            <div className="space-y-0.5">
+                              <span className="font-extrabold uppercase font-mono">Week {weekItem.week}</span>
+                              <div className="opacity-90">
+                                Meetings: <span className="font-mono font-bold">{weekItem["Meeting Hours"]}h/W</span> | 
+                                Focus: <span className="font-mono font-bold">{weekItem["Deep Work Hours"]}h/W</span>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              {hasAnomaly ? (
+                                <span className="bg-rose-550/15 border border-rose-500/30 text-rose-450 px-1.5 py-0.5 rounded font-mono font-extrabold text-[9px] uppercase animate-pulse">
+                                  CRITICAL OVERHEAD
+                                </span>
+                              ) : (
+                                <span className="bg-emerald-555/15 border border-emerald-500/30 text-emerald-450 px-1.5 py-0.5 rounded font-mono font-extrabold text-[9px] uppercase">
+                                  COMPLIANT FOCUS
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </motion.div>
