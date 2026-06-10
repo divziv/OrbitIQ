@@ -21,7 +21,8 @@ import {
   Play,
   ArrowRight,
   User,
-  Download
+  Download,
+  List
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -174,6 +175,7 @@ export default function App() {
   const [inspectWeek, setInspectWeek] = useState<number>(1);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [timelineViewMode, setTimelineViewMode] = useState<"list" | "calendar">("list");
 
   // Expanded local interactive states
   const [exportHistory, setExportHistory] = useState<string[]>(() => {
@@ -288,6 +290,61 @@ export default function App() {
         console.warn("Storage write failed", e);
       }
       return updated;
+    });
+  };
+
+  const handleExportToPDF = () => {
+    window.print();
+  };
+
+  const handleQuickReset = () => {
+    if (!simulatedData) return;
+    
+    // Reset Weeks to Baseline Nominal Trajectory
+    const baselineWeeks = simulatedData.studyTimeline.weeks.map(week => {
+      const isDevOpsCert = simulatedData.fabricIq.recommendedCert === "AZ-400";
+      return {
+        ...week,
+        targetHours: 5.0,
+        dailyMatrix: [
+          {
+            day: "Monday",
+            allocatedHours: 2.0,
+            modulesCovered: [week.dailyMatrix[0]?.modulesCovered[0] || (isDevOpsCert ? "M-401" : "M-301")],
+            tasks: [
+              "Core Architecture Video Series",
+              "Read Official Blueprint Guidelines"
+            ]
+          },
+          {
+            day: "Wednesday",
+            allocatedHours: 1.5,
+            modulesCovered: [week.dailyMatrix[1]?.modulesCovered[0] || (isDevOpsCert ? "M-402" : "M-302")],
+            tasks: [
+              "Hands-on practice exercises in sandbox environment"
+            ]
+          },
+          {
+            day: "Friday",
+            allocatedHours: 1.5,
+            modulesCovered: [week.dailyMatrix[2]?.modulesCovered[0] || (isDevOpsCert ? "M-403" : "M-301")],
+            tasks: [
+              "Weekly Module Knowledge Assessment & Self-Evaluation"
+            ]
+          }
+        ]
+      };
+    });
+
+    setSimulatedData({
+      ...simulatedData,
+      studyTimeline: {
+        ...simulatedData.studyTimeline,
+        weeks: baselineWeeks,
+        mitigationApplied: false,
+        mitigationNotes: "Baseline unmitigated schedule restored via manual user override."
+      },
+      capacityWarnings: []
     });
   };
 
@@ -1067,7 +1124,7 @@ export default function App() {
 
                   {/* Interactive Dynamic Study Timeline View */}
                   <div id="study-timeline-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative overflow-hidden transition-colors duration-300`}>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-white/10 mb-5 font-sans">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between pb-4 border-b border-white/10 mb-5 font-sans gap-4">
                       <div>
                         <div className="flex items-center space-x-2">
                           <BookOpen className="w-4 h-4 text-cyan-400" />
@@ -1076,86 +1133,215 @@ export default function App() {
                         <p className={`text-[11px] ${labelClass} mt-1 select-none`}>Weekly and Day-by-Day training program built with subchannel dependencies</p>
                       </div>
                       
-                      <div className="flex items-center space-x-1.5 mt-3 md:mt-0">
-                        {simulatedData.studyTimeline.weeks.map((week) => (
+                      <div className="flex flex-wrap items-center gap-2 mt-2 xl:mt-0">
+                        {/* Selector Switch for List vs Calendar */}
+                        <div className={`p-0.5 rounded-lg border flex items-center ${
+                          theme === "dark" ? "bg-white/5 border-white/10" : "bg-slate-100 border-slate-200"
+                        }`}>
                           <button
-                            id={`week-tab-btn-${week.weekNumber}`}
-                            key={week.weekNumber}
-                            onClick={() => setInspectWeek(week.weekNumber)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                              inspectWeek === week.weekNumber
-                                ? "bg-cyan-500 text-slate-950 shadow-md font-bold"
-                                : theme === "dark"
-                                  ? "bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
-                                  : "bg-slate-100 border border-slate-250 text-slate-700 hover:bg-slate-200"
+                            id="btn-view-mode-list"
+                            onClick={() => setTimelineViewMode("list")}
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
+                              timelineViewMode === "list"
+                                ? "bg-cyan-550 text-slate-950 font-bold shadow-sm"
+                                : "text-slate-400 hover:text-slate-200"
                             }`}
                           >
-                            Week {week.weekNumber}
+                            <List className="w-3 h-3" />
+                            <span>List</span>
                           </button>
-                        ))}
+                          <button
+                            id="btn-view-mode-calendar"
+                            onClick={() => setTimelineViewMode("calendar")}
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
+                              timelineViewMode === "calendar"
+                                ? "bg-cyan-550 text-slate-950 font-bold shadow-sm"
+                                : "text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            <Calendar className="w-3 h-3" />
+                            <span>Calendar</span>
+                          </button>
+                        </div>
+
+                        {/* Week tabs list */}
+                        <div className="flex items-center space-x-1">
+                          {simulatedData.studyTimeline.weeks.map((week) => (
+                            <button
+                              id={`week-tab-btn-${week.weekNumber}`}
+                              key={week.weekNumber}
+                              onClick={() => setInspectWeek(week.weekNumber)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                inspectWeek === week.weekNumber
+                                  ? "bg-cyan-505 text-slate-95 /deep/ bg-cyan-500 text-slate-950 font-bold shadow-md"
+                                  : theme === "dark"
+                                    ? "bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
+                                    : "bg-slate-100 border border-slate-250 text-slate-700 hover:bg-slate-200"
+                              }`}
+                            >
+                              Week {week.weekNumber}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Quick Reset baseline button */}
+                        <button
+                          id="btn-timeline-quick-reset"
+                          onClick={handleQuickReset}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center space-x-1 ${
+                            theme === "dark"
+                              ? "bg-rose-500/10 border border-rose-500/25 text-rose-455 hover:bg-rose-500/20 hover:text-rose-350"
+                              : "bg-rose-50 border border-rose-250 text-rose-700 hover:bg-rose-100"
+                          }`}
+                          title="Restore schedule to standard baseline plan"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Quick Reset</span>
+                        </button>
                       </div>
                     </div>
 
-                    {/* Active Inspected Week Details */}
-                    <div>
-                      {simulatedData.studyTimeline.weeks.map((week) => {
-                        if (week.weekNumber !== inspectWeek) return null;
-                        return (
-                          <div key={week.weekNumber} className="space-y-4">
-                            <div className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border backdrop-blur-sm ${innerCardClass}`}>
-                              <div>
-                                <span className="text-[10px] font-bold text-slate-500 font-mono">WEEK {week.weekNumber} IN FOCUS BLUEPRINT</span>
-                                <h5 className={`text-sm font-bold ${theme === "dark" ? "text-slate-100" : "text-slate-900"} mt-0.5`}>{week.focusTopic}</h5>
-                              </div>
-                              <div className="text-left mt-2 md:mt-0">
-                                <span className="text-[10px] text-slate-400 uppercase font-mono block">Allocated Practice</span>
-                                <span className="text-md font-mono font-bold text-cyan-500">{week.targetHours} hours this week</span>
-                              </div>
-                            </div>
-
-                            {/* Daily Matrices */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {week.dailyMatrix.map((day, idx) => (
-                                <div key={idx} className={`shadow-lg p-4 rounded-xl flex flex-col justify-between transition-all duration-205 border ${
-                                  theme === "dark"
-                                    ? "bg-white/5 border-white/10 hover:border-white/15 hover:bg-white/10 text-slate-100"
-                                    : "bg-slate-50/50 border-slate-200 hover:border-slate-350 hover:bg-slate-100/50 text-slate-900"
-                                }`}>
-                                  <div>
-                                    <div className="flex justify-between items-center pb-2 border-b border-black/10 mb-3">
-                                      <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-slate-950"}`}>{day.day}</span>
-                                      <span className={`text-xs font-mono px-1.5 py-0.5 rounded-lg border ${
-                                        theme === "dark" ? "text-cyan-300 bg-white/5 border-white/10" : "text-cyan-700 bg-white border-slate-205"
-                                      }`}>{day.allocatedHours} hrs</span>
-                                    </div>
-                                    <ul className="space-y-2">
-                                      {day.tasks.map((task, tIdx) => (
-                                        <li key={tIdx} className={`text-xs flex items-start space-x-1.5 leading-relaxed ${theme === "dark" ? "text-slate-350" : "text-slate-650"}`}>
-                                          <span className="text-cyan-500 text-xs mt-0.5 select-none">•</span>
-                                          <span>{task}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                  
-                                  <div className="mt-4 pt-2.5 border-t border-black/10 flex items-center justify-between text-[11px] text-slate-400">
-                                    <span className="font-mono">Sub-Module COVERED:</span>
-                                    <button
-                                      id={`sub-module-btn-${day.modulesCovered[0]}`}
-                                      onClick={() => setSelectedModuleId(day.modulesCovered[0])}
-                                      className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-2 py-0.5 text-cyan-500 hover:text-white hover:bg-cyan-500 hover:border-cyan-600 transition-all font-mono font-bold cursor-pointer inline-flex items-center space-x-1 active:scale-95 shadow-sm"
-                                      title="Click to view detailed skill prerequisites & official citations"
-                                    >
-                                      <span>{day.modulesCovered[0]}</span>
-                                      <Info className="w-2.5 h-2.5 text-cyan-500 shrink-0" />
-                                    </button>
-                                  </div>
+                    {/* Active Inspected Week Details with Slide-Fade Animations */}
+                    <div className="relative">
+                      <AnimatePresence mode="wait">
+                        {simulatedData.studyTimeline.weeks
+                          .filter((w) => w.weekNumber === inspectWeek)
+                          .map((week) => (
+                            <motion.div
+                              key={week.weekNumber}
+                              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -12, scale: 0.995 }}
+                              transition={{ duration: 0.22, ease: "easeOut" }}
+                              className="space-y-4"
+                            >
+                              <div className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border backdrop-blur-sm ${innerCardClass}`}>
+                                <div>
+                                  <span className="text-[10px] font-bold text-slate-500 font-mono">WEEK {week.weekNumber} IN FOCUS BLUEPRINT</span>
+                                  <h5 className={`text-sm font-bold ${theme === "dark" ? "text-slate-100" : "text-slate-900"} mt-0.5`}>{week.focusTopic}</h5>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
+                                <div className="text-left mt-2 md:mt-0">
+                                  <span className="text-[10px] text-slate-400 uppercase font-mono block">Allocated Practice</span>
+                                  <span className="text-md font-mono font-bold text-cyan-500">{week.targetHours} hours this week</span>
+                                </div>
+                              </div>
+
+                              {timelineViewMode === "list" ? (
+                                /* Standard Grid List View */
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {week.dailyMatrix.map((day, idx) => (
+                                    <div key={idx} className={`shadow-lg p-4 rounded-xl flex flex-col justify-between transition-all duration-205 border ${
+                                      theme === "dark"
+                                        ? "bg-white/5 border-white/10 hover:border-white/15 hover:bg-white/10 text-slate-100"
+                                        : "bg-slate-50/50 border-slate-200 hover:border-slate-350 hover:bg-slate-100/50 text-slate-900"
+                                    }`}>
+                                      <div>
+                                        <div className="flex justify-between items-center pb-2 border-b border-black/10 mb-3">
+                                          <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-slate-955"}`}>{day.day}</span>
+                                          <span className={`text-xs font-mono px-1.5 py-0.5 rounded-lg border ${
+                                            theme === "dark" ? "text-cyan-300 bg-white/5 border-white/10" : "text-cyan-700 bg-white border-slate-205"
+                                          }`}>{day.allocatedHours} hrs</span>
+                                        </div>
+                                        <ul className="space-y-2">
+                                          {day.tasks.map((task, tIdx) => (
+                                            <li key={tIdx} className={`text-xs flex items-start space-x-1.5 leading-relaxed ${theme === "dark" ? "text-slate-350" : "text-slate-650"}`}>
+                                              <span className="text-cyan-500 text-xs mt-0.5 select-none">•</span>
+                                              <span>{task}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                      
+                                      <div className="mt-4 pt-2.5 border-t border-black/10 flex items-center justify-between text-[11px] text-slate-400">
+                                        <span className="font-mono">Sub-Module COVERED:</span>
+                                        <button
+                                          id={`sub-module-btn-${day.modulesCovered[0]}`}
+                                          onClick={() => setSelectedModuleId(day.modulesCovered[0])}
+                                          className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-2 py-0.5 text-cyan-500 hover:text-white hover:bg-cyan-500 hover:border-cyan-600 transition-all font-mono font-bold cursor-pointer inline-flex items-center space-x-1 active:scale-95 shadow-sm"
+                                          title="Click to view detailed skill prerequisites & official citations"
+                                        >
+                                          <span>{day.modulesCovered[0]}</span>
+                                          <Info className="w-2.5 h-2.5 text-cyan-500 shrink-0" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                /* Beautiful High-Fidelity Calendar View Builder */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+                                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((dayName, idx) => {
+                                    const dayData = week.dailyMatrix.find(d => d.day === dayName);
+                                    const isStudyDay = !!dayData;
+                                    
+                                    return (
+                                      <div 
+                                        key={dayName} 
+                                        className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all min-h-[225px] ${
+                                          isStudyDay 
+                                            ? theme === "dark"
+                                              ? "bg-cyan-950/20 border-cyan-500/20 hover:border-cyan-500/40 text-slate-100 shadow-[0_4px_12px_rgba(6,182,212,0.05)]"
+                                              : "bg-cyan-50/30 border-cyan-200 hover:border-cyan-300 text-slate-900 shadow-sm"
+                                            : theme === "dark"
+                                              ? "bg-white/2 border-dashed border-white/5 text-slate-500 bg-[linear-gradient(45deg,rgba(255,255,255,0.01)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.01)_50%,rgba(255,255,255,0.01)_75%,transparent_75%,transparent)] bg-[length:12px_12px]"
+                                              : "bg-slate-50 border-dashed border-slate-200 text-slate-400 bg-[linear-gradient(45deg,rgba(0,0,0,0.01)_25%,transparent_25%,transparent_50%,rgba(0,0,0,0.01)_50%,rgba(0,0,0,0.01)_75%,transparent_75%,transparent)] bg-[length:12px_12px]"
+                                        }`}
+                                      >
+                                        <div>
+                                          {/* Day Header with indicator tabs */}
+                                          <div className="flex items-center justify-between pb-1.5 border-b border-black/10 mb-2.5">
+                                            <span className="text-xs font-black uppercase tracking-wider">{dayName.slice(0, 3)}</span>
+                                            {isStudyDay ? (
+                                              <span className="text-[9px] font-mono font-bold bg-cyan-500/15 border border-cyan-400/20 text-cyan-400 px-1.5 py-0.2 rounded uppercase">
+                                                {dayData.allocatedHours} hr block
+                                              </span>
+                                            ) : (
+                                              <span className="text-[8px] font-mono opacity-50 uppercase tracking-widest">Off-slot</span>
+                                            )}
+                                          </div>
+
+                                          {isStudyDay ? (
+                                            <ul className="space-y-2">
+                                              {dayData.tasks.map((task, tIdx) => (
+                                                <li key={tIdx} className={`text-[10px] leading-snug flex items-start space-x-1 ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}>
+                                                  <span className="text-cyan-500 text-[10px] mt-0.5 select-none">•</span>
+                                                  <span>{task}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          ) : (
+                                            <div className="flex flex-col items-center justify-center py-6 text-center space-y-1 opacity-60">
+                                              <Clock className="w-4 h-4 text-slate-500" />
+                                              <p className="text-[9px] font-semibold leading-snug">
+                                                {dayName === "Saturday" || dayName === "Sunday"
+                                                  ? "Rest & Reset"
+                                                  : "Job Focus Slot"}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {isStudyDay && (
+                                          <div className="mt-4 pt-2 border-t border-black/10 flex flex-col gap-0.5 items-start">
+                                            <span className="text-[8px] font-mono uppercase tracking-widest text-slate-500">Curriculum Code:</span>
+                                            <button
+                                              id={`cal-sub-module-btn-${dayData.modulesCovered[0]}`}
+                                              onClick={() => setSelectedModuleId(dayData.modulesCovered[0])}
+                                              className="bg-cyan-500/10 border border-cyan-500/20 rounded-md px-1.5 py-0.2 text-[9px] text-cyan-450 hover:text-white hover:bg-cyan-500 transition-all font-mono font-black cursor-pointer inline-flex items-center space-x-0.5 active:scale-95 shadow-sm"
+                                            >
+                                              <span>{dayData.modulesCovered[0]}</span>
+                                              <Info className="w-2.5 h-2.5 text-cyan-500 shrink-0" />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </motion.div>
+                          ))}
+                      </AnimatePresence>
                     </div>
                   </div>
 
@@ -1245,16 +1431,25 @@ export default function App() {
                             <Users className={`w-4 h-4 ${theme === "dark" ? "text-indigo-400" : "text-indigo-600"}`} />
                             <h4 className={`text-xs font-bold uppercase tracking-wider ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights & Exports</h4>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-wrap sm:flex-nowrap gap-1">
                             <button
                               id="btn-download-json-compliance"
                               onClick={handleDownloadComplianceReport}
-                              className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 text-white rounded-lg flex items-center space-x-1.5 cursor-pointer shadow hover:bg-indigo-550 active:scale-95 transition-all"
+                              className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 text-white rounded-lg flex items-center space-x-1.5 cursor-pointer shadow hover:bg-indigo-550 active:scale-95 transition-all shrink-0"
                             >
-                              <Download className="w-3" />
+                              <Download className="w-3 h-3" />
                               <span>Export JSON</span>
                             </button>
-                            <span className="text-[10px] font-mono text-indigo-350 bg-indigo-500/10 border border-indigo-500/25 px-1.5 py-0.5 rounded font-bold select-none">SANITIZED</span>
+                            <button
+                              id="btn-export-pdf-report"
+                              onClick={handleExportToPDF}
+                              className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600 text-white rounded-lg flex items-center space-x-1.5 cursor-pointer shadow hover:bg-emerald-550 active:scale-95 transition-all shrink-0"
+                              title="Generate a high-fidelity printable PDF report of the active training blueprint"
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span>Export PDF</span>
+                            </button>
+                            <span className="text-[10px] font-mono text-indigo-350 bg-indigo-500/10 border border-indigo-500/25 px-1.5 py-0.5 rounded font-bold select-none whitespace-nowrap">SANITIZED</span>
                           </div>
                         </div>
 

@@ -10,7 +10,61 @@ import json
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, EmailStr, field_validator
+try:
+    from pydantic import BaseModel, Field, EmailStr, field_validator
+except ImportError:
+    # Defining a lightweight Pydantic BaseModel fallback to run without external dependencies
+    class BaseModel:
+        def __init__(self, **kwargs):
+            annotations = {}
+            for cls in self.__class__.__mro__:
+                annotations.update(getattr(cls, '__annotations__', {}))
+                
+            for name, type_hint in annotations.items():
+                if name not in kwargs:
+                    if hasattr(self.__class__, name):
+                        val = getattr(self.__class__, name)
+                        if isinstance(val, FieldInfo):
+                            if val.default_factory is not None:
+                                kwargs[name] = val.default_factory()
+                            elif val.default is not ...:
+                                kwargs[name] = val.default
+                            else:
+                                kwargs[name] = None
+                        else:
+                            kwargs[name] = val
+                    else:
+                        kwargs[name] = None
+            
+            for key, val in kwargs.items():
+                if isinstance(val, FieldInfo):
+                    if val.default_factory is not None:
+                        val = val.default_factory()
+                    elif val.default is not ...:
+                        val = val.default
+                    else:
+                        val = None
+                setattr(self, key, val)
+
+    class FieldInfo:
+        def __init__(self, default=..., default_factory=None, description=None):
+            self.default = default
+            self.default_factory = default_factory
+            self.description = description
+
+    def Field(default=..., **kwargs):
+        return FieldInfo(
+            default=default, 
+            default_factory=kwargs.get("default_factory"), 
+            description=kwargs.get("description")
+        )
+
+    def field_validator(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+    EmailStr = str
 
 # Configure Logging to standard output with detailed tracing
 logging.basicConfig(
