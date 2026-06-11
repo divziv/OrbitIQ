@@ -200,6 +200,7 @@ export default function App() {
   });
   const [activeThinkingNode, setActiveThinkingNode] = useState<number | null>(null);
   const [isSliderHovered, setIsSliderHovered] = useState<boolean>(false);
+  const [hoveredNode, setHoveredNode] = useState<number | null>(null);
 
   // Automatically cycle through topological reasoning layers when simulating live inputs
   useEffect(() => {
@@ -753,21 +754,27 @@ export default function App() {
             <div className={`relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-[1.5px] ${theme === "dark" ? "before:bg-white/10" : "before:bg-slate-200"}`}>
               
               {/* Agent 1 Node */}
-              <div id="topology-node-1" className="relative flex items-start space-x-3">
+              <div 
+                id="topology-node-1" 
+                className="relative flex items-start space-x-3 cursor-help"
+                onMouseEnter={() => setHoveredNode(1)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
                   activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>1</div>
-                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-200 border ${
-                  activeThinkingNode === 1 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
-                  theme === "dark" 
-                    ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border ${
+                  activeThinkingNode === 1 || hoveredNode === 1 
+                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" 
+                    : theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${getNodeStatus(1).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 1 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Learning Path Curator Agent</span>
+                      <span className={`text-xs font-bold ${activeThinkingNode === 1 || hoveredNode === 1 ? "text-amber-500 font-extrabold" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Learning Path Curator Agent</span>
                     </div>
                     <span className="text-[9px] font-mono font-bold text-cyan-550 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded">MATCH IQ</span>
                   </div>
@@ -775,25 +782,50 @@ export default function App() {
                     <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Bridges gaps to technical blueprints, outputs citations.</p>
                     <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(1).textClass}`}>{getNodeStatus(1).label}</span>
                   </div>
+
+                  {/* Node Hover Interactive Details */}
+                  <AnimatePresence>
+                    {hoveredNode === 1 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                      >
+                        <div>
+                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Compares Sanitized employee background details to corporate technical milestones to define highly structured training directions.
+                        </div>
+                        <div>
+                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Sanitized Employee Profile & Team parameters → Selected Exam Blueprint & identified syllabus gaps.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
               {/* Agent 2 Node */}
-              <div id="topology-node-2" className="relative flex items-start space-x-3">
+              <div 
+                id="topology-node-2" 
+                className="relative flex items-start space-x-3 cursor-help"
+                onMouseEnter={() => setHoveredNode(2)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
                   activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>2</div>
-                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-200 border ${
-                  activeThinkingNode === 2 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
-                  theme === "dark" 
-                    ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border ${
+                  activeThinkingNode === 2 || hoveredNode === 2
+                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" 
+                    : theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${getNodeStatus(2).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 2 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Study Plan Generator</span>
+                      <span className={`text-xs font-bold ${activeThinkingNode === 2 || hoveredNode === 2 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Study Plan Generator</span>
                     </div>
                     <span className="text-[9px] font-mono font-bold text-indigo-550 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">PLANNER-EXEC</span>
                   </div>
@@ -801,11 +833,35 @@ export default function App() {
                     <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Splits macro-level sequencing and daily training actions.</p>
                     <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(2).textClass}`}>{getNodeStatus(2).label}</span>
                   </div>
+
+                  {/* Node Hover Interactive Details */}
+                  <AnimatePresence>
+                    {hoveredNode === 2 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                      >
+                        <div>
+                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Deconstructs large exam syllabus targets across weeks to produce sequenced list indices of custom technical focus targets.
+                        </div>
+                        <div>
+                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Exam Certification Blueprint → Week-by-week timeline calendar schema with day tasks.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
               {/* Agent 3 Node */}
-              <div id="topology-node-3" className="relative flex items-start space-x-3">
+              <div 
+                id="topology-node-3" 
+                className="relative flex items-start space-x-3 cursor-help"
+                onMouseEnter={() => setHoveredNode(3)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
                   activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData?.studyTimeline?.mitigationApplied 
@@ -813,7 +869,7 @@ export default function App() {
                     : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>3</div>
                 <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 ${
-                  activeThinkingNode === 3 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
+                  activeThinkingNode === 3 || hoveredNode === 3 ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205" :
                   simulatedData?.studyTimeline?.mitigationApplied 
                     ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
                     : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20"
@@ -821,7 +877,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${getNodeStatus(3).dotClass}`} />
-                      <span className={`text-xs font-semibold ${activeThinkingNode === 3 ? "text-amber-500 font-extrabold animate-pulse" : "text-slate-200"}`}>Engagement Critic Agent</span>
+                      <span className={`text-xs font-semibold ${activeThinkingNode === 3 || hoveredNode === 3 ? "text-amber-500 font-extrabold animate-pulse" : "text-slate-200"}`}>Engagement Critic Agent</span>
                     </div>
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
                       simulatedData?.studyTimeline?.mitigationApplied
@@ -843,25 +899,50 @@ export default function App() {
                       <span>Critic loop triggered! Backlink mitigation active.</span>
                     </motion.div>
                   )}
+
+                  {/* Node Hover Interactive Details */}
+                  <AnimatePresence>
+                    {hoveredNode === 3 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                      >
+                        <div>
+                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Monitors continuous corporate workloads to intercept excessive schedules, automatically trimming study targets if meetings exceed 20 hours.
+                        </div>
+                        <div>
+                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Calendar commitment metrics & Deploy Window status → Overriding allocation modifiers (e.g. 50% load discount).
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
               {/* Agent 4 Node */}
-              <div id="topology-node-4" className="relative flex items-start space-x-3">
+              <div 
+                id="topology-node-4" 
+                className="relative flex items-start space-x-3 cursor-help"
+                onMouseEnter={() => setHoveredNode(4)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
                   activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>4</div>
                 <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
-                  activeThinkingNode === 4 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)] text-slate-200" :
-                  theme === "dark" 
-                    ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                  activeThinkingNode === 4 || hoveredNode === 4
+                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" 
+                    : theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${getNodeStatus(4).dotClass}`} />
-                      <span className={`text-xs font-semibold ${activeThinkingNode === 4 ? "text-amber-500 font-extrabold animate-pulse" : "text-inherit"}`}>Assessment Agent</span>
+                      <span className={`text-xs font-semibold ${activeThinkingNode === 4 || hoveredNode === 4 ? "text-amber-500 font-extrabold animate-pulse" : "text-inherit"}`}>Assessment Agent</span>
                     </div>
                     <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold">VERIFIER</span>
                   </div>
@@ -869,25 +950,50 @@ export default function App() {
                     <p className="text-[11px] text-slate-400 select-none leading-tight">Autonomously drafts exams and validates correctness securely.</p>
                     <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(4).textClass}`}>{getNodeStatus(4).label}</span>
                   </div>
+
+                  {/* Node Hover Interactive Details */}
+                  <AnimatePresence>
+                    {hoveredNode === 4 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                      >
+                        <div>
+                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Builds custom multiple-choice question batches focused exactly on active modules, referencing official documentation paragraphs as sources.
+                        </div>
+                        <div>
+                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Active curriculum topic index → Verified Mock questions with exact page references.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
               {/* Agent 5 Node */}
-              <div id="topology-node-5" className="relative flex items-start space-x-3">
+              <div 
+                id="topology-node-5" 
+                className="relative flex items-start space-x-3 cursor-help"
+                onMouseEnter={() => setHoveredNode(5)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
                 <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
                   activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
                   simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
                 }`}>5</div>
                 <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
-                  activeThinkingNode === 5 ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]" :
-                  theme === "dark" 
-                    ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                  activeThinkingNode === 5 || hoveredNode === 5
+                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" 
+                    : theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${getNodeStatus(5).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 5 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights Agent</span>
+                      <span className={`text-xs font-bold ${activeThinkingNode === 5 || hoveredNode === 5 ? "text-amber-500 font-extrabold" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights Agent</span>
                     </div>
                     <span className="text-[9px] font-mono font-bold text-indigo-405 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">ANONYMOUS</span>
                   </div>
@@ -895,6 +1001,25 @@ export default function App() {
                     <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Analyzes team progress while completely stripping all employee PII.</p>
                     <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(5).textClass}`}>{getNodeStatus(5).label}</span>
                   </div>
+
+                  {/* Node Hover Interactive Details */}
+                  <AnimatePresence>
+                    {hoveredNode === 5 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                      >
+                        <div>
+                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Pools current team statuses together to report general upskilling velocity to high-level managers, anonymizing personal usernames.
+                        </div>
+                        <div>
+                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Learner timelines & capacity history lists → Multi-user metadata grid and compliance reviews.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -986,6 +1111,69 @@ export default function App() {
                   className="space-y-6"
                 >
                   
+                  {/* Real-time Agent Reasoning Transitions Overlay Log */}
+                  <div id="agent-thinking-logs-overlay" className={`p-4 rounded-2xl border transition-all duration-300 relative ${
+                    theme === "dark" 
+                      ? "bg-slate-950/70 backdrop-blur-md border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.05)]" 
+                      : "bg-slate-100/90 backdrop-blur-md border-slate-300 shadow-md"
+                  }`}>
+                    <div className="flex items-center justify-between border-b border-black/10 pb-2 mb-3">
+                      <div className="flex items-center space-x-2">
+                        <Terminal className="w-3.5 h-3.5 text-cyan-455 animate-pulse" />
+                        <span className={`text-[11px] font-bold uppercase tracking-wider ${theme === "dark" ? "text-slate-205" : "text-slate-805"}`}>Live OrbitIQ Agent Reasoning Monitor</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="flex h-2 w-2 relative">
+                          <span className={`${loading ? "animate-ping bg-amber-400" : "bg-emerald-500"} absolute inline-flex h-full w-full rounded-full opacity-75`}></span>
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${loading ? "bg-amber-500" : "bg-emerald-500"}`}></span>
+                        </span>
+                        <span className="text-[9px] font-mono text-slate-400 uppercase select-none">{loading ? "Simulating Transitions..." : "System Idle"}</span>
+                      </div>
+                    </div>
+
+                    <div className="font-mono text-[10.5px] space-y-1.5 h-[110px] overflow-y-auto scrollbar-thin select-text">
+                      {loading ? (
+                        <>
+                          <div className="text-slate-500">▶ T-0: Multi-Agent Engine Sandbox Started...</div>
+                          {activeThinkingNode >= 1 && (
+                            <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="text-cyan-400">
+                              🧠 [Curator Node 1] Reading and matches {employeeId}'s profile details & team skill gaps...
+                            </motion.div>
+                          )}
+                          {activeThinkingNode >= 2 && (
+                            <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="text-indigo-400">
+                              📅 [Planner Node 2] Generating micro-task calendar vectors for certification blueprint coverages...
+                            </motion.div>
+                          )}
+                          {activeThinkingNode >= 3 && (
+                            <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className={meetingHours > 20 ? "text-rose-455 font-semibold" : "text-emerald-455"}>
+                              🛡️ [Critic Node 3] Auditor analyzing workload stress: meeting rate is {meetingHours} hrs/week. {meetingHours > 20 ? "ALERT: Capacity threshold bypassed! Implementing 50% scale-down overrides!" : "NOMINAL: Workload constraints normal."}
+                            </motion.div>
+                          )}
+                          {activeThinkingNode >= 4 && (
+                            <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="text-cyan-301">
+                              🧪 [Verifier Node 4] Assembling exam questions with matched blueprint documentation citation proofs...
+                            </motion.div>
+                          )}
+                          {activeThinkingNode >= 5 && (
+                            <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="text-pink-400 animate-pulse">
+                              📊 [Insights Node 5] Stripping PII. Bundling team reports into anonymized Executive manager indicators...
+                            </motion.div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="space-y-1 text-left">
+                          <div className="text-emerald-500 flex items-center space-x-1">
+                            <span>✔ multi_agent_simulation_run COMPLETE. State converged.</span>
+                          </div>
+                          <div className="text-slate-400">⚡ State Graph converged successfully. Applied stress profile: <span className="text-amber-400 font-bold">{stressProfile}</span></div>
+                          <div className="text-slate-400">📉 Engagement Critic overrides: <span className={simulatedData.studyTimeline.mitigationApplied ? "text-rose-455 font-black animate-pulse" : "text-emerald-500 font-bold"}>{simulatedData.studyTimeline.mitigationApplied ? "ACTIVE (50% scale-down)" : "INACTIVE (Fully allocated)"}</span></div>
+                          <div className="text-slate-400">🔍 Curriculum Blueprints mapped successfully for target exam: <span className="text-cyan-400 font-mono underline">{simulatedData.fabricIq.recommendedCert}</span></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Executive Alert Warning Section */}
                   {simulatedData.studyTimeline.mitigationApplied && (
                     <motion.div 
@@ -1051,6 +1239,7 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+                    </div>
                                                           {/* Work IQ Weekly Workload Telemetry */}
                     <div id="work-telemetry-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative overflow-hidden`}>
                       <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4 flex-wrap gap-2">
@@ -1317,7 +1506,7 @@ export default function App() {
                         </div>
 
                       </div>
-                    </div>   </div>
+                    </div>
                   </div>
 
                   {/* Interactive Dynamic Study Timeline View */}

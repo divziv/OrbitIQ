@@ -5,3 +5,57 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  /* Hide non-report layout elements on print */
+  #sandbox-controls,
+  header,
+  footer,
+  button,
+  a,
+  .navigation-tabs,
+  [role="tablist"],
+  #btn-export-pdf-report,
+  #btn-download-json-compliance,
+  #btn-download-telemetry-csv,
+  #btn-toggle-compare-historical,
+  #btn-expand-telemetry-view,
+  #btn-share-telemetry,
+  .no-print {
+    display: none !important;
+  }
+  /* Maximize report content readability and spacing */
+  main, .lg\:col-span-8 {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* Convert dark cards into high contrast physical grids */
+  .backdrop-blur-md,
+  .bg-white\/5,
+  [id$="-card"],
+  .rounded-2xl {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    color: #0f172a !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 1.5rem !important;
+  }
+  /* Force dark colored texts to print in deep legible state */
+  .text-white, .text-slate-100, .text-slate-200 {
+    color: #0f172a !important;
+  }
+  .text-slate-400, .text-slate-500, .text-slate-650 {
+    color: #334155 !important;
+  }
+  .text-cyan-400, .text-cyan-500 {
+    color: #0369a1 !important;
+  }
+}
