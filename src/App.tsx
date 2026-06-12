@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Cpu, 
   Layers, 
@@ -29,6 +29,7 @@ import {
   X,
   ExternalLink,
   Check,
+  Printer,
   Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -209,6 +210,9 @@ export default function App() {
   const [topologyFilter, setTopologyFilter] = useState<"all" | "healthy" | "attention">("all");
   const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
   const [hoveredLegendSeries, setHoveredLegendSeries] = useState<"Meeting" | "Deep Work" | null>(null);
+  const [timeWindow, setTimeWindow] = useState<"4weeks" | "60days" | "90days">("4weeks");
+  const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
+  const [isPrintMode, setIsPrintMode] = useState<boolean>(false);
 
   const isNodeFilterActive = (nodeId: number) => {
     if (topologyFilter === "all") return true;
@@ -473,7 +477,8 @@ export default function App() {
   };
 
   const handleExportToPDF = () => {
-    window.print();
+    setIsPrintMode(true);
+    setShowPrintPreview(true);
   };
 
   const handleQuickReset = () => {
@@ -527,37 +532,105 @@ export default function App() {
     });
   };
 
-  // Recharts 4-week series computed dynamically to react to custom sliders
-  const rechartData4Weeks = simulatedData ? [
-    {
-      week: "W21",
-      "Meeting Hours": Number((meetingHours * 0.85).toFixed(1)),
-      "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.85) - (prodDeploy ? 6 : 0)).toFixed(1)),
-      "Hist. Meeting": 28.0,
-      "Hist. Deep Work": 12.0,
-    },
-    {
-      week: "W22",
-      "Meeting Hours": Number((meetingHours * 1.15).toFixed(1)),
-      "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.15) - (prodDeploy ? 11 : 0)).toFixed(1)),
-      "Hist. Meeting": 32.5,
-      "Hist. Deep Work": 7.5,
-    },
-    {
-      week: "W23",
-      "Meeting Hours": Number((meetingHours * 0.95).toFixed(1)),
-      "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.95) - (prodDeploy ? 8 : 0)).toFixed(1)),
-      "Hist. Meeting": 29.0,
-      "Hist. Deep Work": 11.0,
-    },
-    {
-      week: "W24 (Live)",
-      "Meeting Hours": meetingHours,
-      "Deep Work Hours": simulatedData.telemetryIq.deepWorkHours,
-      "Hist. Meeting": 30.5,
-      "Hist. Deep Work": 9.5,
-    },
-  ] : [];
+  // Recharts series computed dynamically to react to custom sliders and selected time window
+  const rechartData4Weeks = useMemo(() => {
+    if (!simulatedData) return [];
+    
+    const baseWeeks = [
+      {
+        week: "W13",
+        "Meeting Hours": Number((meetingHours * 0.80).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.80) - (prodDeploy ? 5 : 0)).toFixed(1)),
+        "Hist. Meeting": 26.0,
+        "Hist. Deep Work": 14.0,
+      },
+      {
+        week: "W14",
+        "Meeting Hours": Number((meetingHours * 1.20).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.20) - (prodDeploy ? 10 : 0)).toFixed(1)),
+        "Hist. Meeting": 34.0,
+        "Hist. Deep Work": 6.0,
+      },
+      {
+        week: "W15",
+        "Meeting Hours": Number((meetingHours * 0.70).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.70) - (prodDeploy ? 4 : 0)).toFixed(1)),
+        "Hist. Meeting": 23.0,
+        "Hist. Deep Work": 17.0,
+      },
+      {
+        week: "W16",
+        "Meeting Hours": Number((meetingHours * 1.00).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.05) - (prodDeploy ? 8 : 0)).toFixed(1)),
+        "Hist. Meeting": 29.5,
+        "Hist. Deep Work": 10.5,
+      },
+      {
+        week: "W17",
+        "Meeting Hours": Number((meetingHours * 0.75).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.75) - (prodDeploy ? 5 : 0)).toFixed(1)),
+        "Hist. Meeting": 25.0,
+        "Hist. Deep Work": 15.0,
+      },
+      {
+        week: "W18",
+        "Meeting Hours": Number((meetingHours * 1.10).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.10) - (prodDeploy ? 7 : 0)).toFixed(1)),
+        "Hist. Meeting": 31.0,
+        "Hist. Deep Work": 9.0,
+      },
+      {
+        week: "W19",
+        "Meeting Hours": Number((meetingHours * 0.90).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.90) - (prodDeploy ? 6 : 0)).toFixed(1)),
+        "Hist. Meeting": 27.5,
+        "Hist. Deep Work": 12.5,
+      },
+      {
+        week: "W20",
+        "Meeting Hours": Number((meetingHours * 1.05).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.05) - (prodDeploy ? 10 : 0)).toFixed(1)),
+        "Hist. Meeting": 30.0,
+        "Hist. Deep Work": 10.0,
+      },
+      {
+        week: "W21",
+        "Meeting Hours": Number((meetingHours * 0.85).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.85) - (prodDeploy ? 6 : 0)).toFixed(1)),
+        "Hist. Meeting": 28.0,
+        "Hist. Deep Work": 12.0,
+      },
+      {
+        week: "W22",
+        "Meeting Hours": Number((meetingHours * 1.15).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 1.15) - (prodDeploy ? 11 : 0)).toFixed(1)),
+        "Hist. Meeting": 32.5,
+        "Hist. Deep Work": 7.5,
+      },
+      {
+        week: "W23",
+        "Meeting Hours": Number((meetingHours * 0.95).toFixed(1)),
+        "Deep Work Hours": Number(Math.max(0, 40 - (meetingHours * 0.95) - (prodDeploy ? 8 : 0)).toFixed(1)),
+        "Hist. Meeting": 29.0,
+        "Hist. Deep Work": 11.0,
+      },
+      {
+        week: "W24 (Live)",
+        "Meeting Hours": meetingHours,
+        "Deep Work Hours": simulatedData.telemetryIq.deepWorkHours,
+        "Hist. Meeting": 30.5,
+        "Hist. Deep Work": 9.5,
+      },
+    ];
+
+    if (timeWindow === "4weeks") {
+      return baseWeeks.slice(-4);
+    } else if (timeWindow === "60days") {
+      return baseWeeks.slice(-8);
+    } else {
+      return baseWeeks;
+    }
+  }, [simulatedData, meetingHours, prodDeploy, timeWindow]);
 
   // Semantic accessible color combinations mapped perfectly for both dark and high-contrast light formats
   const bgMainClass = theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900";
@@ -2518,13 +2591,37 @@ export default function App() {
                       </div>
                     </div>
                                                           {/* Work IQ Weekly Workload Telemetry */}
-                    <div id="work-telemetry-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative overflow-hidden`}>
+                    <div 
+                      id="work-telemetry-card" 
+                      className={`${
+                        isPrintMode 
+                          ? "bg-white border-2 border-slate-900 text-slate-950 shadow-md" 
+                          : cardBgClass
+                      } backdrop-blur-md rounded-2xl p-5 relative overflow-hidden transition-all duration-300`}
+                    >
                       <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4 flex-wrap gap-2">
                         <div className="flex items-center space-x-2">
-                          <Calendar className={`w-4 h-4 ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
-                          <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>WorkIQ: Live Telemetry Sensors</h4>
+                          <Calendar className={`w-4 h-4 ${isPrintMode ? "text-slate-900" : theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
+                          <h4 className={`text-xs font-semibold uppercase tracking-wider ${isPrintMode ? "text-slate-900" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>WorkIQ: Live Telemetry Sensors</h4>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Print Mode Preview Toggle */}
+                          <button
+                            id="btn-toggle-print-mode"
+                            onClick={() => setIsPrintMode(!isPrintMode)}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 border ${
+                              isPrintMode 
+                                ? "bg-slate-900 border-slate-905 text-white" 
+                                : theme === "dark"
+                                  ? "bg-white/5 border-white/10 text-slate-400 hover:text-white"
+                                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-250"
+                            }`}
+                            title="Simulate monochrome physical print styles directly in the dashboard"
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>{isPrintMode ? "Print Style On" : "Print Preview"}</span>
+                          </button>
+
                           {/* Period-over-Period Compare Toggle */}
                           <button
                             id="btn-toggle-compare-historical"
@@ -2655,18 +2752,38 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex justify-between text-xs pt-1">
+                        <div className="flex justify-between text-xs pt-1 border-b border-black/5 pb-2.5">
                           <span className={labelClass}>Assigned Incident Counter</span>
                           <span className={`font-mono ${prodDeploy ? "text-rose-505 font-black" : theme === "dark" ? "text-slate-400 font-semibold" : "text-slate-600 font-semibold"}`}>
                             {simulatedData.telemetryIq.averageIncidentCount} Open Tickets
                           </span>
                         </div>
 
-                        {/* Recharts Bar Chart: Weekly Meeting vs. Deep Work 4-Week Balance */}
-                        <div className="pt-2 border-t border-black/10">
+                        {/* Date Custom Range Selector */}
+                        <div className="flex justify-between items-center text-xs py-2 border-b border-black/5">
+                          <span className={labelClass}>Workspace Analytics Window</span>
+                          <div className="flex items-center bg-black/15 dark:bg-black/45 p-0.5 rounded-lg border border-white/5 shadow-inner">
+                            {(["4weeks", "60days", "90days"] as const).map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => setTimeWindow(r)}
+                                className={`px-2 py-0.5 text-[8.5px] font-bold rounded-md font-mono uppercase transition-all duration-150 cursor-pointer ${
+                                  timeWindow === r
+                                    ? "bg-cyan-500 text-slate-950 font-black shadow"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                {r === "4weeks" ? "4 Weeks" : r === "60days" ? "60 Days" : "90 Days"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Recharts Bar Chart: Weekly Meeting vs. Deep Work Dynamic Balance */}
+                        <div className="pt-2">
                           <div className="flex justify-between items-center mb-2">
                             <span className="text-[11px] font-bold uppercase text-indigo-405 flex items-center gap-1.5">
-                              4-Week Balance Telemetry
+                              {timeWindow === "4weeks" ? "4-Week" : timeWindow === "60days" ? "60-Day" : "90-Day"} Balance Telemetry
                               {rechartData4Weeks.some(w => w["Meeting Hours"] > 20) && (
                                 <span className="bg-rose-500/10 text-rose-405 border border-rose-500/20 text-[8.5px] px-1 py-0.1 rounded uppercase animate-pulse select-none" title="Anomalous meeting coordinate loads detected (>20h threshold)">
                                   Anomaly Detected
@@ -2706,12 +2823,23 @@ export default function App() {
                           </div>
                           
                           <motion.div 
-                            key={`chart_reveal_${simulatedData.telemetryIq.reportingWeek}_${meetingHours}_${prodDeploy}_${compareHistorical}`}
+                            key={`chart_reveal_${simulatedData.telemetryIq.reportingWeek}_${meetingHours}_${prodDeploy}_${compareHistorical}_${timeWindow}_${isPrintMode}`}
                             initial={{ opacity: 0, scale: 0.98, y: 5 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             transition={{ duration: 0.35, ease: "easeOut" }}
-                            className={`h-[140px] w-full rounded-xl p-2 relative ${theme === "dark" ? "bg-black/25 border border-white/5" : "bg-slate-50 border border-slate-200"}`}
+                            className={`h-[140px] w-full rounded-xl p-2 relative ${
+                              isPrintMode 
+                                ? "bg-slate-100 border-2 border-slate-900 text-slate-950 font-bold" 
+                                : theme === "dark" 
+                                  ? "bg-black/25 border border-white/5" 
+                                  : "bg-slate-50 border border-slate-200"
+                            }`}
                           >
+                            {isPrintMode && (
+                              <div className="absolute top-1.5 right-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-950 px-1.5 py-0.5 text-[8px] font-mono font-black border border-current rounded uppercase tracking-wider select-none z-20 shadow-[0_2px_4px_rgba(0,0,0,0.15)] opacity-95">
+                                📊 REPORT MODE ACTIVE
+                              </div>
+                            )}
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={rechartData4Weeks} margin={{ top: 5, right: 5, left: -28, bottom: -5 }}>
                                 <defs>
@@ -2721,17 +2849,17 @@ export default function App() {
                                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                                   </filter>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
+                                <CartesianGrid strokeDasharray="3 3" stroke={isPrintMode ? "#cbd5e1" : theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
                                 <XAxis 
                                   dataKey="week" 
-                                  tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 9 }} 
-                                  axisLine={false} 
-                                  tickLine={false} 
+                                  tick={{ fill: isPrintMode ? "#000000" : (theme === "dark" ? "#94a3b8" : "#475569"), fontSize: 9, fontWeight: isPrintMode ? 700 : 500 }} 
+                                  axisLine={isPrintMode ? { stroke: "#000000", strokeWidth: 1.5 } : false} 
+                                  tickLine={isPrintMode ? { stroke: "#000000" } : false} 
                                 />
                                 <YAxis 
-                                  tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 9 }} 
-                                  axisLine={false} 
-                                  tickLine={false} 
+                                  tick={{ fill: isPrintMode ? "#000000" : (theme === "dark" ? "#94a3b8" : "#475569"), fontSize: 9, fontWeight: isPrintMode ? 700 : 500 }} 
+                                  axisLine={isPrintMode ? { stroke: "#000000", strokeWidth: 1.5 } : false} 
+                                  tickLine={isPrintMode ? { stroke: "#000000" } : false} 
                                 />
                                 <Tooltip 
                                   cursor={{ fill: "transparent" }}
@@ -2739,17 +2867,19 @@ export default function App() {
                                     if (active && payload && payload.length) {
                                       return (
                                         <div className={`p-2.5 rounded-lg border text-[10px] font-mono shadow-xl ${
-                                          theme === "dark" 
-                                            ? "bg-slate-900 border-white/10 text-slate-100" 
-                                            : "bg-white border-slate-200 text-slate-900"
+                                          isPrintMode 
+                                            ? "bg-white border-2 border-slate-900 text-slate-950"
+                                            : theme === "dark" 
+                                              ? "bg-slate-900 border-white/10 text-slate-100" 
+                                              : "bg-white border-slate-200 text-slate-900"
                                         }`}>
                                           <p className="font-bold border-b border-black/10 pb-0.5 mb-1 text-inherit">{label}</p>
-                                          <p className="text-cyan-400">Meeting: {payload[0]?.value}h</p>
-                                          <p className="text-emerald-400">Deep Work: {payload[1]?.value}h</p>
+                                          <p className={isPrintMode ? "text-slate-900 font-bold" : "text-cyan-400"}>Meeting: {payload[0]?.value}h</p>
+                                          <p className={isPrintMode ? "text-slate-600 font-semibold" : "text-emerald-400"}>Deep Work: {payload[1]?.value}h</p>
                                           {payload.length > 2 && (
                                             <>
-                                              <p className="text-amber-500 border-t border-black/10 mt-1 pt-0.5">Hist. Meeting: {payload[2]?.value}h</p>
-                                              <p className="text-green-500">Hist. Deep Work: {payload[3]?.value}h</p>
+                                              <p className="text-amber-600 border-t border-black/10 mt-1 pt-0.5">Hist. Meeting: {payload[2]?.value}h</p>
+                                              <p className="text-green-700">Hist. Deep Work: {payload[3]?.value}h</p>
                                             </>
                                           )}
                                         </div>
@@ -2769,13 +2899,16 @@ export default function App() {
                                 >
                                   {rechartData4Weeks.map((entry, index) => {
                                     const isAnomaly = entry["Meeting Hours"] > 20;
-                                    const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
+                                    const baseColor = isPrintMode 
+                                      ? "#000000" 
+                                      : (theme === "dark" ? "#22d3ee" : "#0284c7");
+                                    const anomalyColor = isPrintMode ? "#000000" : "#f43f5e";
                                     return (
                                       <Cell 
                                         key={`cell-meet-${index}`} 
-                                        fill={isAnomaly ? "#f43f5e" : baseColor}
-                                        filter={isAnomaly ? "url(#anomaly-glow)" : undefined}
-                                        className={isAnomaly ? "animate-pulse" : ""}
+                                        fill={isAnomaly ? anomalyColor : baseColor}
+                                        filter={isAnomaly && !isPrintMode ? "url(#anomaly-glow)" : undefined}
+                                        className={isAnomaly && !isPrintMode ? "animate-pulse" : ""}
                                       />
                                     );
                                   })}
@@ -2783,7 +2916,7 @@ export default function App() {
                                 
                                 <Bar 
                                   dataKey="Deep Work Hours" 
-                                  fill={theme === "dark" ? "#10b981" : "#16a34a"} 
+                                  fill={isPrintMode ? "#64748b" : (theme === "dark" ? "#10b981" : "#16a34a")} 
                                   radius={[3, 3, 0, 0]} 
                                   isAnimationActive={true} 
                                   animationDuration={950}
@@ -3685,6 +3818,209 @@ export default function App() {
           </div>
         )}
 
+        {/* Print Preview Simulated Document Modal Block */}
+        {showPrintPreview && simulatedData && (
+          <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+            <div className="min-h-screen py-8 flex flex-col items-center justify-center w-full max-w-4xl">
+              {/* Sticky Controls Panel */}
+              <div className="w-full bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl p-4 mb-4 flex justify-between items-center shadow-2xl flex-wrap gap-3">
+                <div className="flex items-center space-x-2.5">
+                  <Printer className="w-5 h-5 text-cyan-405 animate-pulse" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-100">Official Report Print Preview</h4>
+                    <p className="text-[10px] text-slate-400">Verify high-contrast monochrome coordinates & formatting prior to physical output</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setIsPrintMode(!isPrintMode)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-95 flex items-center space-x-1 cursor-pointer ${
+                      isPrintMode 
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold" 
+                        : "bg-slate-800 border-slate-700 hover:bg-slate-750 text-slate-350"
+                    }`}
+                    title="Toggle high contrast black and white mockup styles"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{isPrintMode ? "Pure Monochrome On" : "Preview Monochrome"}</span>
+                  </button>
+
+                  <button
+                    id="btn-trigger-print-dialog"
+                    onClick={() => {
+                      window.print();
+                    }}
+                    className="px-3.5 py-1.5 text-xs font-extrabold text-slate-950 bg-cyan-405 hover:bg-cyan-350 rounded-lg transition-all active:scale-95 flex items-center space-x-1.5 cursor-pointer shadow-md shadow-cyan-400/10"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print Page</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowPrintPreview(false);
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-450 hover:text-white bg-slate-800 border border-slate-705 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5 inline mr-1" />
+                    <span>Close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Simulated Paper Draft Document */}
+              <div className="w-full max-w-3xl bg-white border border-slate-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-lg p-8 text-slate-950 font-sans print:shadow-none print:border-none print:p-0">
+                {/* Executive Title Block */}
+                <div className="border-b-4 border-slate-900 pb-5 mb-6 flex justify-between items-baseline flex-wrap gap-2">
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest uppercase font-extrabold text-slate-450 block">OrbitIQ Compliance System Document</span>
+                    <h1 className="text-xl font-black uppercase text-slate-900 tracking-tight font-sans">
+                      WorkIQ Workload Analytics Report
+                    </h1>
+                  </div>
+                  <div className="text-right font-mono text-[9px] text-slate-500">
+                    <div>DOC-ID: fde5fe00-92fe-4dbe-b5b6-6fba2b88252d</div>
+                    <div>DATE: 2026-06-12 14:12 UTC</div>
+                  </div>
+                </div>
+
+                {/* Meta Summary Blocks */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-xs bg-slate-50 border border-slate-200 p-4 rounded-lg">
+                  <div>
+                    <span className="text-[9px] font-mono uppercase text-slate-500 block">EMPLOYEE COGNITIVE ID</span>
+                    <span className="font-bold font-mono text-slate-900">{simulatedData.employeeId}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-mono uppercase text-slate-500 block">STRESS TOLL STATE</span>
+                    <span className={`font-extrabold uppercase ${stressProfile === "HIGH_STRESS" ? "text-rose-600" : "text-emerald-700"}`}>
+                      {stressProfile === "HIGH_STRESS" ? "HIGH COGNITIVE STRAIN" : "STABLE TOLERANCE"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-mono uppercase text-slate-500 block">LIVE TELEMETRY CYCLE</span>
+                    <span className="font-bold text-slate-900 font-mono">{simulatedData.telemetryIq.reportingWeek}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-mono uppercase text-slate-500 block">DRAFT CLASSIFICATION</span>
+                    <span className="font-bold text-slate-900 uppercase font-mono tracking-wide">CONFIDENTIAL PEER</span>
+                  </div>
+                </div>
+
+                {/* Sub-text Context block */}
+                <div className="text-xs text-slate-705 space-y-2 mb-6">
+                  <p>
+                    This file serves as an official workload trajectory audit for human cognitive tracking under high-stress deployment scenarios. Historical training models are layered alongside real-time metrics to diagnose bottleneck conditions and ensure operational reliability.
+                  </p>
+                </div>
+
+                {/* Telemetry Chart Block */}
+                <div className="border border-slate-250 p-4 rounded-lg bg-slate-50/50 mb-6 relative">
+                  {/* Subtle report watermark indicator overlay on chart in Print Preview */}
+                  <div className="absolute top-1.5 right-1.5 bg-slate-900 text-white px-2 py-0.5 text-[8.5px] font-mono font-black border border-slate-950 rounded uppercase tracking-wider select-none z-20 shadow-md">
+                    📝 DRAFT PREVIEW COMPLIANCE RECORD
+                  </div>
+
+                  <div className="flex justify-between items-center mb-3">
+                    <h5 className="text-xs font-black uppercase text-slate-800 tracking-wide">
+                      {timeWindow === "4weeks" ? "4-WEEK" : timeWindow === "60days" ? "60-DAY" : "90-DAY"} RESOURCE BALANCE METRICS
+                    </h5>
+                    <span className="text-[8px] font-mono text-slate-500 uppercase">Unit: Cognitive Hours per week</span>
+                  </div>
+
+                  <div className="h-[220px] w-full mt-3 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={rechartData4Weeks} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
+                        <XAxis 
+                          dataKey="week" 
+                          tick={{ fill: "#000000", fontSize: 9, fontWeight: 700 }}
+                          axisLine={{ stroke: "#000000", strokeWidth: 1.5 }}
+                          tickLine={{ stroke: "#000000" }}
+                        />
+                        <YAxis 
+                          tick={{ fill: "#000000", fontSize: 9, fontWeight: 700 }}
+                          axisLine={{ stroke: "#000000", strokeWidth: 1.5 }}
+                          tickLine={{ stroke: "#000000" }}
+                        />
+                        <Tooltip cursor={{ fill: "transparent" }} />
+                        <Bar dataKey="Meeting Hours" radius={[3, 3, 0, 0]}>
+                          {rechartData4Weeks.map((entry, index) => (
+                            <Cell key={`cell-preview-meet-${index}`} fill="#000000" />
+                          ))}
+                        </Bar>
+                        <Bar dataKey="Deep Work Hours" fill="#64748b" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="flex justify-center items-center space-x-6 text-[10px] font-bold uppercase text-slate-800 mt-2 font-mono">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 bg-slate-900 inline-block rounded-sm" />
+                      <span>Meeting Hours (Solid Black)</span>
+                    </span>
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 bg-slate-500 inline-block rounded-sm" />
+                      <span>Deep Work Focus (Slate Grey)</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Operational Warning block */}
+                {rechartData4Weeks.some(w => w["Meeting Hours"] > 20) && (
+                  <div className="border border-red-300 bg-red-50 text-red-900 text-xs p-3.5 rounded-lg mb-6 flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-red-650 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-extrabold uppercase block text-[10px] tracking-wide">Operational Threat Threshold Alert</span>
+                      <p className="text-[11px] mt-0.5">
+                        Meetings exceeded 20 hours in one or more reporting weeks. This compromises deep-work concentration buffers, prompting high exhaustion probability ratings on current on-call deployment logs.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-section: Live blueprint state checklist */}
+                <div className="mb-8">
+                  <h5 className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-500 mb-2 border-b border-slate-205 pb-1.5">
+                    Workspace Qualification & Training Blueprints
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {(simulatedData.assignedBlueprints || []).map((bp: any, idx: number) => {
+                      const completedCount = bp.courses?.filter((c: any) => c.status === "COMPLETED")?.length || 0;
+                      const totalCount = bp.courses?.length || 0;
+                      const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                      return (
+                        <div key={idx} className="border border-slate-200 p-2.5 rounded-lg bg-slate-50/50 flex flex-col justify-between">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-slate-900 text-[11px]">{bp.name || "Upskilling Block"}</span>
+                            <span className="font-mono text-[9px] text-slate-500 uppercase">{percent}% Completed</span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-1 rounded mt-2">
+                            <div className="bg-slate-900 h-1 rounded" style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Official Sign-off Bottom Block */}
+                <div className="border-t border-slate-400 pt-7 mt-8 grid grid-cols-2 gap-6 text-[10px] text-slate-600 font-mono">
+                  <div>
+                    <div className="font-extrabold text-slate-900 uppercase">SUBMITTED BY:</div>
+                    <div className="mt-8 border-b border-slate-400 pb-1"></div>
+                    <div className="mt-1">OrbitIQ automated validation engine</div>
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-slate-900 uppercase">SUPERINTENDENT ENDORSEMENT:</div>
+                    <div className="mt-8 border-b border-slate-400 pb-1"></div>
+                    <div className="mt-1">Certified Supervisor Sign-off & Date</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fullscreen Expand View Telemetry Modal */}
         {isTelemetryExpanded && simulatedData && (
           <div className="fixed inset-0 z-55 flex items-center justify-center p-4">
@@ -3767,17 +4103,43 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pl-2 font-sans">
                 {/* Visualizer Chart Column */}
                 <div className="md:col-span-7 space-y-4">
-                  <div className={`p-4 rounded-xl border ${
-                    theme === "dark" ? "bg-black/35 border-white/10" : "bg-slate-50 border-slate-205"
+                  <div className={`p-4 rounded-xl border relative ${
+                    isPrintMode 
+                      ? "bg-white border-2 border-slate-900 text-slate-950"
+                      : theme === "dark" 
+                        ? "bg-black/35 border-white/10" 
+                        : "bg-slate-50 border-slate-205"
                   }`}>
-                    <div className="flex justify-between items-center mb-3">
+                    {isPrintMode && (
+                      <div className="absolute top-1.5 right-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-950 px-1.5 py-0.5 text-[8px] font-mono font-black border border-current rounded uppercase tracking-wider select-none z-20 shadow-[0_2px_4px_rgba(0,0,0,0.15)] opacity-95">
+                        📊 REPORT MODE ACTIVE
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center mb-3 pb-3 border-b border-black/10 flex-wrap gap-2">
                       <div>
-                        <span className="text-[10px] font-mono uppercase text-cyan-400 block font-extrabold tracking-wider">Live Workspace Monitors</span>
-                        <h5 className="text-xs font-bold font-sans">4-Week Workload Balance Chart</h5>
+                        <span className={`text-[10px] font-mono uppercase block font-extrabold tracking-wider ${isPrintMode ? "text-slate-800" : "text-cyan-400"}`}>Live Workspace Monitors</span>
+                        <h5 className="text-xs font-bold font-sans">
+                          {timeWindow === "4weeks" ? "4-Week" : timeWindow === "60days" ? "60-Day" : "90-Day"} Workload Balance Chart
+                        </h5>
+                      </div>
+                      <div className="flex items-center bg-black/15 dark:bg-black/45 p-0.5 rounded-lg border border-white/5 shadow-inner">
+                        {(["4weeks", "60days", "90days"] as const).map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => setTimeWindow(r)}
+                            className={`px-2 py-0.5 text-[8.5px] font-bold rounded-md font-mono uppercase transition-all duration-150 cursor-pointer ${
+                              timeWindow === r
+                                ? "bg-cyan-500 text-slate-950 font-black shadow"
+                                : "text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            {r === "4weeks" ? "4W" : r === "60days" ? "60D" : "90D"}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="h-[250px] w-full mt-3">
+                    <div className="h-[250px] w-full mt-3 relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={rechartData4Weeks} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                           <defs>
@@ -3787,17 +4149,17 @@ export default function App() {
                               <feComposite in="SourceGraphic" in2="blur" operator="over" />
                             </filter>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={isPrintMode ? "#cbd5e1" : theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} />
                           <XAxis 
                             dataKey="week" 
-                            tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10 }}
-                            axisLine={false} 
-                            tickLine={false} 
+                            tick={{ fill: isPrintMode ? "#000000" : theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10, fontWeight: isPrintMode ? 700 : 500 }}
+                            axisLine={isPrintMode ? { stroke: "#000000", strokeWidth: 1.5 } : false} 
+                            tickLine={isPrintMode ? { stroke: "#000000" } : false} 
                           />
                           <YAxis 
-                            tick={{ fill: theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10 }}
-                            axisLine={false} 
-                            tickLine={false} 
+                            tick={{ fill: isPrintMode ? "#000000" : theme === "dark" ? "#94a3b8" : "#475569", fontSize: 10, fontWeight: isPrintMode ? 700 : 500 }}
+                            axisLine={isPrintMode ? { stroke: "#000000", strokeWidth: 1.5 } : false} 
+                            tickLine={isPrintMode ? { stroke: "#000000" } : false} 
                           />
                           <Tooltip 
                             cursor={{ fill: "transparent" }}
@@ -3805,17 +4167,19 @@ export default function App() {
                               if (active && payload && payload.length) {
                                 return (
                                   <div className={`p-3 rounded-xl border text-xs font-mono shadow-2xl ${
-                                    theme === "dark" 
-                                      ? "bg-slate-950 border-white/15 text-slate-100" 
-                                      : "bg-white border-slate-250 text-slate-900"
+                                    isPrintMode 
+                                      ? "bg-white border-2 border-slate-900 text-slate-950"
+                                      : theme === "dark" 
+                                        ? "bg-slate-950 border-white/15 text-slate-100" 
+                                        : "bg-white border-slate-250 text-slate-900"
                                   }`}>
                                     <p className="font-extrabold border-b border-black/10 pb-1 mb-1.5 text-inherit">{label}</p>
-                                    <p className="text-cyan-400 font-bold">Meeting: {payload[0]?.value}h</p>
-                                    <p className="text-emerald-450 font-bold">Deep Work: {payload[1]?.value}h</p>
+                                    <p className={isPrintMode ? "text-slate-900 font-bold" : "text-cyan-400 font-bold"}>Meeting: {payload[0]?.value}h</p>
+                                    <p className={isPrintMode ? "text-slate-600 font-semibold" : "text-emerald-450 font-bold"}>Deep Work: {payload[1]?.value}h</p>
                                     {payload.length > 2 && (
                                       <>
-                                        <p className="text-amber-500 font-extrabold border-t border-black/10 mt-1 pt-1 opacity-90">Hist. Meeting: {payload[2]?.value}h</p>
-                                        <p className="text-green-500 font-extrabold">Hist. Deep Work: {payload[3]?.value}h</p>
+                                        <p className="text-amber-600 font-extrabold border-t border-black/10 mt-1 pt-1 opacity-90">Hist. Meeting: {payload[2]?.value}h</p>
+                                        <p className="text-green-700 font-extrabold">Hist. Deep Work: {payload[3]?.value}h</p>
                                       </>
                                     )}
                                   </div>
@@ -3833,19 +4197,22 @@ export default function App() {
                           >
                             {rechartData4Weeks.map((entry, index) => {
                               const isAnomaly = entry["Meeting Hours"] > 20;
-                              const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
+                              const baseColor = isPrintMode 
+                                ? "#000000" 
+                                : (theme === "dark" ? "#22d3ee" : "#0284c7");
+                              const anomalyColor = isPrintMode ? "#000000" : "#f43f5e";
                               return (
                                 <Cell 
                                   key={`cell-modal-meet-${index}`} 
-                                  fill={isAnomaly ? "#f43f5e" : baseColor}
-                                  filter={isAnomaly ? "url(#anomaly-glow-modal)" : undefined}
+                                  fill={isAnomaly ? anomalyColor : baseColor}
+                                  filter={isAnomaly && !isPrintMode ? "url(#anomaly-glow-modal)" : undefined}
                                 />
                               );
                             })}
                           </Bar>
                           <Bar 
                             dataKey="Deep Work Hours" 
-                            fill={theme === "dark" ? "#10b981" : "#16a34a"} 
+                            fill={isPrintMode ? "#64748b" : (theme === "dark" ? "#10b981" : "#16a34a")} 
                             radius={[3, 3, 0, 0]} 
                             opacity={hoveredLegendSeries === "Meeting" ? 0.2 : 1}
                           />
