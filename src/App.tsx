@@ -28,7 +28,8 @@ import {
   Share2,
   X,
   ExternalLink,
-  Check
+  Check,
+  Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -201,6 +202,110 @@ export default function App() {
   const [activeThinkingNode, setActiveThinkingNode] = useState<number | null>(null);
   const [isSliderHovered, setIsSliderHovered] = useState<boolean>(false);
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
+  const [selectedAgentFilter, setSelectedAgentFilter] = useState<number | null>(null);
+  const [failedNodes, setFailedNodes] = useState<number[]>([]);
+  const [retryingNode, setRetryingNode] = useState<number | null>(null);
+
+  // Custom agent parameter states and horizontal full flowchart mode
+  const [deepDiveMode, setDeepDiveMode] = useState<boolean>(false);
+  const [openSettingsNode, setOpenSettingsNode] = useState<number | null>(null);
+  const [agentOverrides, setAgentOverrides] = useState<Record<number, { mode: "Aggressive" | "Passive" | "Adaptive"; latencyLimit: number; priority: "High" | "Medium" | "Low" }>>({
+    1: { mode: "Adaptive", latencyLimit: 120, priority: "Medium" },
+    2: { mode: "Adaptive", latencyLimit: 150, priority: "Medium" },
+    3: { mode: "Aggressive", latencyLimit: 80, priority: "High" },
+    4: { mode: "Adaptive", latencyLimit: 140, priority: "Medium" },
+    5: { mode: "Passive", latencyLimit: 250, priority: "Low" },
+  });
+
+  const agentSyncData: Record<number, { rate: string; trend: "up" | "down" | "stable"; points: number[]; healthy: string; inPipe: string; outPipe: string; registryId: string }> = {
+    1: { rate: "99.4%", trend: "up", points: [95, 98, 97, 99, 99.4], healthy: "99.4% Nominal", inPipe: "raw::sanitized_employee_profiles", outPipe: "vetted::certification_blueprint", registryId: "curator.learning_path_v1" },
+    2: { rate: "98.1%", trend: "up", points: [91, 93, 96, 95, 98.1], healthy: "98.1% Stable", inPipe: "curr::vetted_certification_blueprint", outPipe: "milestones::week_schedule_matrix", registryId: "planner.study_plan_gen_v1" },
+    3: { rate: "99.8%", trend: "stable", points: [100, 100, 99, 100, 99.8], healthy: "99.8% Perfect", inPipe: "commitments::calendar_metrics", outPipe: "load_modifiers::allocation_discount", registryId: "critic.engagement_monitor_v1" },
+    4: { rate: "84.2%", trend: "down", points: [94, 91, 88, 85, 84.2], healthy: "Degraded Sync Status", inPipe: "curriculum::active_topic_index", outPipe: "validated::trivia_question_sets", registryId: "verifier.assessment_agent_v1" },
+    5: { rate: "97.5%", trend: "up", points: [92, 94, 93, 95, 97.5], healthy: "97.5% Secure", inPipe: "timelines::collective_member_history", outPipe: "anonymized::compliance_review_grid", registryId: "insights.manager_reporter_v1" }
+  };
+
+  const handleRetryAgent = (nodeIndex: number) => {
+    setRetryingNode(nodeIndex);
+    setTimeout(() => {
+      setFailedNodes(prev => prev.filter(n => n !== nodeIndex));
+      setRetryingNode(null);
+    }, 1200);
+  };
+
+  const renderSparkline = (points: number[]) => {
+    const strokeColor = points[4] >= points[0] ? "stroke-emerald-400" : "stroke-rose-450";
+    const pathData = points.map((val, idx) => {
+      const x = idx * 11 + 2;
+      const clamped = Math.max(80, Math.min(100, val));
+      const y = 14 - ((clamped - 80) / 20) * 10;
+      return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+
+    return (
+      <svg className={`w-12 h-3.5 fill-none ${strokeColor}`} viewBox="0 0 50 14" xmlns="http://www.w3.org/2000/svg">
+        <path d={pathData} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  };
+
+  const renderTrendIcon = (trend: "up" | "down" | "stable", rate: string) => {
+    if (trend === "up") {
+      return (
+        <span className="flex items-center space-x-0.5 text-emerald-400 font-mono text-[9px] font-bold" title="Success rate increasing over last 5 cycles">
+          <TrendingUp className="w-2.5 h-2.5 shrink-0" />
+          <span>{rate}</span>
+        </span>
+      );
+    }
+    if (trend === "down") {
+      return (
+        <span className="flex items-center space-x-0.5 text-rose-400 font-mono text-[9px] font-bold" title="Degradation trigger active">
+          <TrendingDown className="w-2.5 h-2.5 shrink-0 animate-bounce" />
+          <span>{rate}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center space-x-0.5 text-slate-400 font-mono text-[9px]" title="Success rate is constant">
+        <Minus className="w-2.5 h-2.5 shrink-0" />
+        <span>{rate}</span>
+      </span>
+    );
+  };
+
+  const getHorizontalTitle = (id: number) => {
+    switch (id) {
+      case 1: return "Curator Agent";
+      case 2: return "Study Plan Gen";
+      case 3: return "Engagement Critic";
+      case 4: return "Assessment Agent";
+      case 5: return "Insights Agent";
+      default: return "Agent";
+    }
+  };
+
+  const getNodeDescriptionSummary = (id: number) => {
+    switch (id) {
+      case 1: return "Bridges gaps to technical blueprints, outputs citations.";
+      case 2: return "Splits macro sequencing and daily training actions.";
+      case 3: return "Checks Capacity metrics, scales back study matrix by 50% on strain.";
+      case 4: return "Autonomously drafts exams and validates correctness.";
+      case 5: return "Analyzes team progress while completely stripping all PII.";
+      default: return "OrbitIQ autonomous routing node.";
+    }
+  };
+
+  const getRegistryLabel = (id: number) => {
+    switch (id) {
+      case 1: return "MATCH IQ";
+      case 2: return "PLANNER-EXEC";
+      case 3: return "SELF-REFLECT";
+      case 4: return "VERIFIER";
+      case 5: return "ANONYMOUS";
+      default: return "ORBITIQ";
+    }
+  };
 
   // Automatically cycle through topological reasoning layers when simulating live inputs
   useEffect(() => {
@@ -218,6 +323,20 @@ export default function App() {
   }, [loading]);
 
   const getNodeStatus = (nodeIndex: number) => {
+    if (retryingNode === nodeIndex) {
+      return {
+        label: "Syncing...",
+        dotClass: "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-spin",
+        textClass: "text-amber-500 font-bold"
+      };
+    }
+    if (failedNodes.includes(nodeIndex)) {
+      return {
+        label: "Sync Failed",
+        dotClass: "bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse",
+        textClass: "text-rose-500 font-bold animate-pulse"
+      };
+    }
     if (loading) {
       if (activeThinkingNode === nodeIndex) {
         return {
@@ -441,6 +560,8 @@ export default function App() {
   // Run the core simulation
   const handleRunSimulation = async () => {
     setLoading(true);
+    setFailedNodes([]);
+    setRetryingNode(null);
     try {
       const response = await fetch("/api/run-simulation", {
         method: "POST",
@@ -457,6 +578,8 @@ export default function App() {
         setPrevMeetingHours(meetingHours);
         setSimulatedData(data.structuredState);
         setPythonLogs(data.pythonLogs);
+        // Automatically inject high-fidelity initial assessment failures for Node 4
+        setFailedNodes([4]);
       }
     } catch (err) {
       console.error("Simulation request error:", err);
@@ -739,291 +862,1237 @@ export default function App() {
               </button>
             </div>
           </div>
-
-          {/* Core Multi-Agent Topology State Graph Visualizer */}
-          <div id="state-topology-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative overflow-hidden`}>
-            <div className="flex items-center space-x-2 mb-4">
-              <Cpu className={`w-5 h-5 ${theme === "dark" ? "text-indigo-300" : "text-indigo-600"}`} />
-              <h3 className={`font-semibold text-sm tracking-wide uppercase ${theme === "dark" ? "text-white" : "text-slate-900"}`}>State Routing Topology</h3>
+                            {/* Core Multi-Agent Topology State Graph Visualizer */}
+          <div id="state-topology-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative`}>
+            <div className="flex items-center justify-between mb-4 border-b border-dashed border-slate-500/10 pb-3 flex-wrap gap-2">
+              <div className="flex items-center space-x-2">
+                <Cpu className={`w-5 h-5 ${theme === "dark" ? "text-indigo-300" : "text-indigo-600"}`} />
+                <h3 className={`font-semibold text-sm tracking-wide uppercase ${theme === "dark" ? "text-white" : "text-slate-900"}`}>State Routing Topology</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                {/* Deep Dive Mode Toggle */}
+                <button
+                  onClick={() => setDeepDiveMode(!deepDiveMode)}
+                  className={`text-[10px] font-mono font-bold px-3 py-1 rounded-lg border cursor-pointer transition-all flex items-center space-x-1.5 uppercase ${
+                    deepDiveMode 
+                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.25)]" 
+                      : "bg-slate-500/5 text-slate-400 border-slate-500/10 hover:border-slate-500/25"
+                  }`}
+                  title="Toggle horizontal state flowchart view"
+                >
+                  <Layers className={`w-3 h-3 ${deepDiveMode ? "animate-pulse text-cyan-400" : ""}`} />
+                  <span>Deep Dive Mode</span>
+                </button>
+                {selectedAgentFilter !== null && (
+                  <button
+                    onClick={() => setSelectedAgentFilter(null)}
+                    className="text-[10px] font-mono font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-950/40 border border-cyan-500/20 px-2 py-1 rounded-lg cursor-pointer transition-all uppercase"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
             </div>
             
             <p className={`text-xs ${labelClass} mb-5 leading-relaxed`}>
-              OrbitIQ coordinates five isolated reasoning agents in a state-graph pattern. See trace properties shift when critic triggers overrides.
+              OrbitIQ coordinates five isolated reasoning agents in a state-graph pattern. {deepDiveMode ? "Showing deep-dive pipeline flow with critical routing paths highlighted. Click gear icon to set parameters." : "Click nodes to filter logs, or trigger retries to sync. Hover for registry details."}
             </p>
 
-            <div className={`relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-[1.5px] ${theme === "dark" ? "before:bg-white/10" : "before:bg-slate-200"}`}>
-              
-              {/* Agent 1 Node */}
-              <div 
-                id="topology-node-1" 
-                className="relative flex items-start space-x-3 cursor-help"
-                onMouseEnter={() => setHoveredNode(1)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                  simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                }`}>1</div>
-                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border ${
-                  activeThinkingNode === 1 || hoveredNode === 1 
-                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" 
-                    : theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(1).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 1 || hoveredNode === 1 ? "text-amber-500 font-extrabold" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Learning Path Curator Agent</span>
-                    </div>
-                    <span className="text-[9px] font-mono font-bold text-cyan-550 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded">MATCH IQ</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Bridges gaps to technical blueprints, outputs citations.</p>
-                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(1).textClass}`}>{getNodeStatus(1).label}</span>
-                  </div>
+            {deepDiveMode ? (
+              /* HORIZONTAL FLOW CHART VIEW */
+              <div className="py-2 overflow-x-auto scrollbar-thin">
+                <div className="min-w-[800px] flex items-stretch justify-between relative py-6 px-1 gap-2">
+                  {[1, 2, 3, 4, 5].map((nodeId, idx) => {
+                    const isThinking = activeThinkingNode === nodeId;
+                    const isActiveFilter = selectedAgentFilter === nodeId;
+                    const isFailed = failedNodes.includes(nodeId);
+                    const isHovered = hoveredNode === nodeId;
+                    const isOverrideOpen = openSettingsNode === nodeId;
+                    
+                    // Critical Path highlight: Node 1 -> Node 2 -> Node 3 -> Node 4 represent the high-demand pipeline
+                    const isCriticalPathNext = nodeId < 5;
 
-                  {/* Node Hover Interactive Details */}
-                  <AnimatePresence>
-                    {hoveredNode === 1 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
-                      >
-                        <div>
-                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Compares Sanitized employee background details to corporate technical milestones to define highly structured training directions.
+                    return (
+                      <React.Fragment key={nodeId}>
+                        {/* Agent Horizontal Node Card */}
+                        <div 
+                          id={`topology-node-${nodeId}`}
+                          className="relative flex-1 flex flex-col justify-between"
+                          onMouseEnter={() => setHoveredNode(nodeId)}
+                          onMouseLeave={() => setHoveredNode(null)}
+                          onClick={() => {
+                            setSelectedAgentFilter(selectedAgentFilter === nodeId ? null : nodeId);
+                            setActiveTab("visualizer");
+                          }}
+                        >
+                          <div className={`h-full flex flex-col justify-between backdrop-blur-sm p-3 rounded-xl shadow-md transition-all duration-200 border cursor-pointer ${
+                            isThinking || isHovered
+                              ? "border-amber-500/75 bg-amber-500/5 shadow-[0_0_12px_rgba(245,158,11,0.1)]" :
+                            isActiveFilter
+                              ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_12px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/20" :
+                            theme === "dark" 
+                              ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-205" 
+                              : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                          }`}>
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-1.5">
+                                  <div className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center text-[9px] font-bold ${
+                                    isThinking ? "bg-amber-500 text-slate-950 border-amber-400 animate-pulse" :
+                                    isActiveFilter ? "bg-cyan-500 text-slate-950 border-cyan-400" :
+                                    "bg-white/5 text-slate-400"
+                                  }`}>{nodeId}</div>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${getNodeStatus(nodeId).dotClass}`} />
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  {/* Sync trend metrics overlay */}
+                                  <div className="bg-black/15 px-1.5 py-0.5 rounded border border-white/5 scale-90 origin-right">
+                                    {renderTrendIcon(agentSyncData[nodeId].trend, agentSyncData[nodeId].rate)}
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenSettingsNode(openSettingsNode === nodeId ? null : nodeId);
+                                    }}
+                                    className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                                      isOverrideOpen ? "text-cyan-400 animate-spin" : ""
+                                    }`}
+                                    title="Operational controls"
+                                  >
+                                    <Settings className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <h4 className="text-[11px] font-bold truncate tracking-tight text-sans leading-snug">
+                                {getHorizontalTitle(nodeId)}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 leading-tight mt-1 line-clamp-2 select-none">
+                                {getNodeDescriptionSummary(nodeId)}
+                              </p>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-t border-dashed border-slate-500/10 flex items-center justify-between text-[9px] font-mono">
+                              <span className="text-[9px] tracking-wide text-cyan-400 font-semibold uppercase">{getRegistryLabel(nodeId)}</span>
+                              <span className={`px-1 py-0.1 select-none rounded bg-slate-500/5 ${getNodeStatus(nodeId).textClass}`}>{getNodeStatus(nodeId).label}</span>
+                            </div>
+
+                            {/* Inline parameters override inside horizontal block */}
+                            <AnimatePresence>
+                              {isOverrideOpen && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 pt-2 border-t border-slate-500/15 text-[10px] space-y-2 bg-black/20 p-2 rounded text-left"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div>
+                                    <span className="text-[9px] text-slate-400 block mb-0.5">Mode:</span>
+                                    <select
+                                      value={agentOverrides[nodeId].mode}
+                                      onChange={(e) => {
+                                        setAgentOverrides(prev => ({
+                                          ...prev,
+                                          [nodeId]: { ...prev[nodeId], mode: e.target.value as any }
+                                        }));
+                                      }}
+                                      className="w-full bg-slate-900 border border-slate-700 rounded p-0.5 text-[10px] font-mono text-slate-100"
+                                    >
+                                      <option value="Adaptive">Adaptive</option>
+                                      <option value="Aggressive">Aggressive</option>
+                                      <option value="Passive">Passive</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-slate-400 block mb-0.5">Priority:</span>
+                                    <select
+                                      value={agentOverrides[nodeId].priority}
+                                      onChange={(e) => {
+                                        setAgentOverrides(prev => ({
+                                          ...prev,
+                                          [nodeId]: { ...prev[nodeId], priority: e.target.value as any }
+                                        }));
+                                      }}
+                                      className="w-full bg-slate-900 border border-slate-700 rounded p-0.5 text-[10px] font-mono text-slate-100"
+                                    >
+                                      <option value="High">High</option>
+                                      <option value="Medium">Medium</option>
+                                      <option value="Low">Low</option>
+                                    </select>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          {/* Floating non-blocking Registry and Health Tooltip modal on hover */}
+                          <AnimatePresence>
+                            {isHovered && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute bottom-full left-0 right-0 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-95 /95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                              >
+                                <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                                  <span className="font-mono text-[9px] text-cyan-400 font-bold uppercase truncate max-w-[150px]" title={agentSyncData[nodeId].registryId}>ID: {agentSyncData[nodeId].registryId}</span>
+                                  <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse shrink-0">● HEALTH NOMINAL</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                                  <div>
+                                    <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Sync Status</span>
+                                    <span className="text-slate-100 font-semibold font-mono">{agentSyncData[nodeId].healthy}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Overrides</span>
+                                    <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[nodeId].mode} mode</span>
+                                  </div>
+                                </div>
+                                <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                                  <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Pipeline</div>
+                                  <div className="truncate"><strong className="text-cyan-400">IN:</strong> {agentSyncData[nodeId].inPipe}</div>
+                                  <div className="truncate"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[nodeId].outPipe}</div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        <div>
-                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Sanitized Employee Profile & Team parameters → Selected Exam Blueprint & identified syllabus gaps.
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+
+                        {/* Connecting indicators for timeline directionality */}
+                        {isCriticalPathNext && (
+                          <div className="flex items-center justify-center pointer-events-none self-center shrink-0 w-4">
+                            <div className="relative flex flex-col items-center">
+                              <ArrowRight className={`w-4 h-4 shrink-0 transition-colors ${
+                                isThinking || loading ? "text-cyan-400 animate-pulse" : "text-slate-200 dark:text-white/10"
+                              }`} />
+                              {/* Pulse flow trace particle */}
+                              {(isThinking || loading) && (
+                                <span className="absolute h-1.5 w-1.5 bg-yellow-400 rounded-full animate-[ping_1.5s_infinite]" />
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
-
-              {/* Agent 2 Node */}
-              <div 
-                id="topology-node-2" 
-                className="relative flex items-start space-x-3 cursor-help"
-                onMouseEnter={() => setHoveredNode(2)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                  simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                }`}>2</div>
-                <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border ${
-                  activeThinkingNode === 2 || hoveredNode === 2
-                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" 
-                    : theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(2).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 2 || hoveredNode === 2 ? "text-amber-500 font-extrabold animate-pulse" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Study Plan Generator</span>
-                    </div>
-                    <span className="text-[9px] font-mono font-bold text-indigo-550 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">PLANNER-EXEC</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Splits macro-level sequencing and daily training actions.</p>
-                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(2).textClass}`}>{getNodeStatus(2).label}</span>
-                  </div>
-
-                  {/* Node Hover Interactive Details */}
-                  <AnimatePresence>
-                    {hoveredNode === 2 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
-                      >
-                        <div>
-                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Deconstructs large exam syllabus targets across weeks to produce sequenced list indices of custom technical focus targets.
-                        </div>
-                        <div>
-                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Exam Certification Blueprint → Week-by-week timeline calendar schema with day tasks.
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* Agent 3 Node */}
-              <div 
-                id="topology-node-3" 
-                className="relative flex items-start space-x-3 cursor-help"
-                onMouseEnter={() => setHoveredNode(3)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                  simulatedData?.studyTimeline?.mitigationApplied 
-                    ? "bg-rose-950/80 text-rose-350 border-rose-500" 
-                    : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                }`}>3</div>
-                <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 ${
-                  activeThinkingNode === 3 || hoveredNode === 3 ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205" :
-                  simulatedData?.studyTimeline?.mitigationApplied 
-                    ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
-                    : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(3).dotClass}`} />
-                      <span className={`text-xs font-semibold ${activeThinkingNode === 3 || hoveredNode === 3 ? "text-amber-500 font-extrabold animate-pulse" : "text-slate-200"}`}>Engagement Critic Agent</span>
-                    </div>
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                      simulatedData?.studyTimeline?.mitigationApplied
-                        ? "text-rose-350 bg-rose-500/20 border border-rose-500/30 font-bold"
-                        : "text-slate-350 bg-white/5 border border-white/10"
-                    }`}>SELF-REFLECT</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className="text-[11px] text-slate-400 select-none leading-tight">Checks Capacity metrics, scales back study matrix by 50% on strain.</p>
-                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(3).textClass}`}>{getNodeStatus(3).label}</span>
-                  </div>
-                  {simulatedData?.studyTimeline?.mitigationApplied && !loading && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-2 text-[10px] text-rose-355 flex items-center space-x-1"
-                    >
-                      <AlertTriangle className="w-3 h-3 text-rose-500 inline shrink-0 animate-bounce" />
-                      <span>Critic loop triggered! Backlink mitigation active.</span>
-                    </motion.div>
+            ) : (
+              /* STANDARD VERTICAL NODE LIST VIEW */
+              <div className="relative pl-6 space-y-5">
+                {/* Subtle path connector vertical line with ongoing flow animation */}
+                <div className="absolute left-[9px] top-2 bottom-2 w-[2px] bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  {/* When loading / executing, show a cascading neon thread pulse running down */}
+                  {loading && (
+                    <motion.div
+                      className="absolute top-0 left-0 right-0 bg-gradient-to-b from-transparent via-cyan-400 to-transparent w-full"
+                      style={{ height: "60px" }}
+                      animate={{
+                        y: ["-60px", "450px"]
+                      }}
+                      transition={{
+                        duration: 1.8,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    />
                   )}
-
-                  {/* Node Hover Interactive Details */}
-                  <AnimatePresence>
-                    {hoveredNode === 3 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
-                      >
-                        <div>
-                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Monitors continuous corporate workloads to intercept excessive schedules, automatically trimming study targets if meetings exceed 20 hours.
-                        </div>
-                        <div>
-                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Calendar commitment metrics & Deploy Window status → Overriding allocation modifiers (e.g. 50% load discount).
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {/* Always show a subtle glowing thread representing information transmission */}
+                  <motion.div 
+                    className="absolute top-0 bottom-0 left-0 right-0 bg-gradient-to-b from-indigo-500/20 via-cyan-500/25 to-indigo-500/20"
+                    animate={{
+                      opacity: [0.3, 0.7, 0.3]
+                    }}
+                    transition={{
+                      duration: 2.5,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
                 </div>
-              </div>
-
-              {/* Agent 4 Node */}
-              <div 
-                id="topology-node-4" 
-                className="relative flex items-start space-x-3 cursor-help"
-                onMouseEnter={() => setHoveredNode(4)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                  simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                }`}>4</div>
-                <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
-                  activeThinkingNode === 4 || hoveredNode === 4
-                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" 
-                    : theme === "dark" 
+                
+                {/* Agent 1 Node */}
+                <div 
+                  id="topology-node-1" 
+                  className="relative flex items-start space-x-3 cursor-pointer select-none"
+                  onMouseEnter={() => setHoveredNode(1)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    setSelectedAgentFilter(selectedAgentFilter === 1 ? null : 1);
+                    setActiveTab("visualizer");
+                  }}
+                >
+                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                    activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                    selectedAgentFilter === 1 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                  }`}>1</div>
+                  <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
+                    activeThinkingNode === 1 || hoveredNode === 1 
+                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
+                    selectedAgentFilter === 1
+                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
+                    theme === "dark" 
                       ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(4).dotClass}`} />
-                      <span className={`text-xs font-semibold ${activeThinkingNode === 4 || hoveredNode === 4 ? "text-amber-500 font-extrabold animate-pulse" : "text-inherit"}`}>Assessment Agent</span>
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2 h-2 rounded-full ${getNodeStatus(1).dotClass}`} />
+                        <BookOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <span className={`text-xs font-bold transition-colors ${
+                          activeThinkingNode === 1 || hoveredNode === 1 ? "text-amber-500 font-extrabold" : 
+                          selectedAgentFilter === 1 ? "text-cyan-400 font-extrabold" :
+                          theme === "dark" ? "text-slate-200" : "text-slate-800"
+                        }`}>Learning Path Curator Agent</span>
+                        
+                        {/* Sparkline & Success Rate */}
+                        <div className="flex items-center space-x-1 ml-2 bg-black/10 px-1.5 py-0.5 rounded border border-white/5 shrink-0 scale-95">
+                          {renderTrendIcon(agentSyncData[1].trend, agentSyncData[1].rate)}
+                          {renderSparkline(agentSyncData[1].points)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 ml-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenSettingsNode(openSettingsNode === 1 ? null : 1);
+                          }}
+                          className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                            openSettingsNode === 1 ? "text-cyan-400 animate-spin" : ""
+                          }`}
+                          title="Override operational parameters"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        {hoveredNode === 1 && (
+                          <span className="text-[9px] font-mono text-cyan-400 animate-pulse bg-cyan-950/50 px-1 py-0.2 rounded border border-cyan-500/20">
+                            {selectedAgentFilter === 1 ? "Click to clear filter" : "Click to filter traces"}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-mono font-bold text-cyan-550 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded">MATCH IQ</span>
+                      </div>
                     </div>
-                    <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold">VERIFIER</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className="text-[11px] text-slate-400 select-none leading-tight">Autonomously drafts exams and validates correctness securely.</p>
-                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(4).textClass}`}>{getNodeStatus(4).label}</span>
-                  </div>
+                    <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                      <p className={`text-[11px] ${labelClass} select-none leading-tight flex-1`}>Bridges gaps to technical blueprints, outputs citations.</p>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className={`text-[9px] font-mono font-bold uppercase px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(1).textClass}`}>{getNodeStatus(1).label}</span>
+                        {failedNodes.includes(1) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAgent(1);
+                            }}
+                            disabled={retryingNode === 1}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500 text-rose-350 hover:text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-sm shrink-0"
+                          >
+                            <RefreshCw className={`w-2.5 h-2.5 ${retryingNode === 1 ? "animate-spin" : ""}`} />
+                            <span>RETRY SYNC</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-                  {/* Node Hover Interactive Details */}
-                  <AnimatePresence>
-                    {hoveredNode === 4 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
+                    {/* Inline parameters overrides panel */}
+                    <AnimatePresence>
+                      {openSettingsNode === 1 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 pt-3 border-t border-slate-500/20 text-xs space-y-3 bg-black/20 p-2.5 rounded-lg text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-cyan-300">Manager Parameter Override</span>
+                            <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.2 rounded font-bold uppercase">System Active</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Execution Mode</label>
+                              <select
+                                value={agentOverrides[1].mode}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    1: { ...prev[1], mode: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="Adaptive">Adaptive Sync</option>
+                                <option value="Aggressive">Aggressive Focus</option>
+                                <option value="Passive">Passive Telemetry</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Sync Priority</label>
+                              <select
+                                value={agentOverrides[1].priority}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    1: { ...prev[1], priority: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="uppercase tracking-wider font-sans">Telemetry Heartbeat Override:</span>
+                              <span className="font-mono text-cyan-400 font-bold">{agentOverrides[1].latencyLimit}ms</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="500"
+                              step="10"
+                              value={agentOverrides[1].latencyLimit}
+                              onChange={(e) => {
+                                setAgentOverrides(prev => ({
+                                  ...prev,
+                                  1: { ...prev[1], latencyLimit: parseInt(e.target.value) }
+                                }));
+                              }}
+                              className="w-full accent-cyan-500 bg-slate-800 rounded h-1 cursor-pointer"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Non-blocking hover floating info-modal */}
+                    <AnimatePresence>
+                      {hoveredNode === 1 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-4 right-4 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-90/95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                        >
+                          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                            <span className="font-mono text-[9px] text-cyan-400 font-bold tracking-widest uppercase">Registry ID: {agentSyncData[1].registryId}</span>
+                            <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse">● HEALTH NOMINAL</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Current Node Health</span>
+                              <span className="text-slate-100 font-semibold font-mono">{agentSyncData[1].healthy}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Operational Mode</span>
+                              <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[1].mode} Mode</span>
+                            </div>
+                          </div>
+                          <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                            <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Input-Output Pipeline</div>
+                            <div className="line-clamp-1"><strong className="text-cyan-400">IN:</strong> {agentSyncData[1].inPipe}</div>
+                            <div className="line-clamp-1"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[1].outPipe}</div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Agent 2 Node */}
+                <div 
+                  id="topology-node-2" 
+                  className="relative flex items-start space-x-3 cursor-pointer select-none"
+                  onMouseEnter={() => setHoveredNode(2)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    setSelectedAgentFilter(selectedAgentFilter === 2 ? null : 2);
+                    setActiveTab("visualizer");
+                  }}
+                >
+                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                    activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                    selectedAgentFilter === 2 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                  }`}>2</div>
+                  <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
+                    activeThinkingNode === 2 || hoveredNode === 2
+                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
+                    selectedAgentFilter === 2
+                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
+                    theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2 h-2 rounded-full ${getNodeStatus(2).dotClass}`} />
+                        <Calendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className={`text-xs font-bold transition-colors ${
+                          activeThinkingNode === 2 || hoveredNode === 2 ? "text-amber-500 font-extrabold" : 
+                          selectedAgentFilter === 2 ? "text-cyan-400 font-extrabold animate-pulse" :
+                          theme === "dark" ? "text-slate-200" : "text-slate-800"
+                        }`}>Study Plan Generator</span>
+                        
+                        {/* Sparkline & Success Rate */}
+                        <div className="flex items-center space-x-1 ml-2 bg-black/10 px-1.5 py-0.5 rounded border border-white/5 shrink-0 scale-95">
+                          {renderTrendIcon(agentSyncData[2].trend, agentSyncData[2].rate)}
+                          {renderSparkline(agentSyncData[2].points)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 ml-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenSettingsNode(openSettingsNode === 2 ? null : 2);
+                          }}
+                          className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                            openSettingsNode === 2 ? "text-cyan-400 animate-spin" : ""
+                          }`}
+                          title="Override operational parameters"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        {hoveredNode === 2 && (
+                          <span className="text-[9px] font-mono text-cyan-400 animate-pulse bg-cyan-950/50 px-1 py-0.2 rounded border border-cyan-500/20">
+                            {selectedAgentFilter === 2 ? "Click to clear filter" : "Click to filter traces"}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-mono font-bold text-indigo-550 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">PLANNER-EXEC</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                      <p className={`text-[11px] ${labelClass} select-none leading-tight flex-1`}>Splits macro-level sequencing and daily training actions.</p>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className={`text-[9px] font-mono font-bold uppercase px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(2).textClass}`}>{getNodeStatus(2).label}</span>
+                        {failedNodes.includes(2) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAgent(2);
+                            }}
+                            disabled={retryingNode === 2}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500 text-rose-350 hover:text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-sm shrink-0"
+                          >
+                            <RefreshCw className={`w-2.5 h-2.5 ${retryingNode === 2 ? "animate-spin" : ""}`} />
+                            <span>RETRY SYNC</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inline parameters overrides panel */}
+                    <AnimatePresence>
+                      {openSettingsNode === 2 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 pt-3 border-t border-slate-500/20 text-xs space-y-3 bg-black/20 p-2.5 rounded-lg text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-cyan-300">Manager Parameter Override</span>
+                            <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.2 rounded font-bold uppercase">System Active</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Execution Mode</label>
+                              <select
+                                value={agentOverrides[2].mode}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    2: { ...prev[2], mode: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="Adaptive">Adaptive Sync</option>
+                                <option value="Aggressive">Aggressive Focus</option>
+                                <option value="Passive">Passive Telemetry</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Sync Priority</label>
+                              <select
+                                value={agentOverrides[2].priority}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    2: { ...prev[2], priority: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="uppercase tracking-wider font-sans">Telemetry Heartbeat Override:</span>
+                              <span className="font-mono text-cyan-400 font-bold">{agentOverrides[2].latencyLimit}ms</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="500"
+                              step="10"
+                              value={agentOverrides[2].latencyLimit}
+                              onChange={(e) => {
+                                setAgentOverrides(prev => ({
+                                  ...prev,
+                                  2: { ...prev[2], latencyLimit: parseInt(e.target.value) }
+                                }));
+                              }}
+                              className="w-full accent-cyan-500 bg-slate-800 rounded h-1 cursor-pointer"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Non-blocking hover floating info-modal */}
+                    <AnimatePresence>
+                      {hoveredNode === 2 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-4 right-4 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-90/95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                        >
+                          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                            <span className="font-mono text-[9px] text-cyan-400 font-bold tracking-widest uppercase">Registry ID: {agentSyncData[2].registryId}</span>
+                            <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse">● HEALTH nominal</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Current Node Health</span>
+                              <span className="text-slate-100 font-semibold font-mono">{agentSyncData[2].healthy}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Operational Mode</span>
+                              <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[2].mode} Mode</span>
+                            </div>
+                          </div>
+                          <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                            <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Input-Output Pipeline</div>
+                            <div className="line-clamp-1"><strong className="text-cyan-400">IN:</strong> {agentSyncData[2].inPipe}</div>
+                            <div className="line-clamp-1"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[2].outPipe}</div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Agent 3 Node */}
+                <div 
+                  id="topology-node-3" 
+                  className="relative flex items-start space-x-3 cursor-pointer select-none"
+                  onMouseEnter={() => setHoveredNode(3)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    setSelectedAgentFilter(selectedAgentFilter === 3 ? null : 3);
+                    setActiveTab("visualizer");
+                  }}
+                >
+                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                    activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                    selectedAgentFilter === 3 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                    simulatedData?.studyTimeline?.mitigationApplied 
+                      ? "bg-rose-955/80 text-rose-350 border-rose-500" 
+                      : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                  }`}>3</div>
+                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 shadow-md relative ${
+                    activeThinkingNode === 3 || hoveredNode === 3 ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205" :
+                    selectedAgentFilter === 3
+                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                    simulatedData?.studyTimeline?.mitigationApplied 
+                      ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
+                      : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200"
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2 h-2 rounded-full ${getNodeStatus(3).dotClass}`} />
+                        <ShieldCheck className="w-3.5 h-3.5 text-rose-455 shrink-0" />
+                        <span className={`text-xs font-semibold transition-colors ${
+                          activeThinkingNode === 3 || hoveredNode === 3 ? "text-amber-500 font-extrabold animate-pulse" : 
+                          selectedAgentFilter === 3 ? "text-cyan-400 font-extrabold" :
+                          "text-slate-200"
+                        }`}>Engagement Critic Agent</span>
+                        
+                        {/* Sparkline & Success Rate */}
+                        <div className="flex items-center space-x-1 ml-2 bg-black/10 px-1.5 py-0.5 rounded border border-white/5 shrink-0 scale-95">
+                          {renderTrendIcon(agentSyncData[3].trend, agentSyncData[3].rate)}
+                          {renderSparkline(agentSyncData[3].points)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 ml-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenSettingsNode(openSettingsNode === 3 ? null : 3);
+                          }}
+                          className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                            openSettingsNode === 3 ? "text-cyan-400 animate-spin" : ""
+                          }`}
+                          title="Override operational parameters"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        {hoveredNode === 3 && (
+                          <span className="text-[9px] font-mono text-cyan-400 animate-pulse bg-cyan-955/50 px-1 py-0.2 rounded border border-cyan-500/20">
+                            {selectedAgentFilter === 3 ? "Click to clear filter" : "Click to filter traces"}
+                          </span>
+                        )}
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                          simulatedData?.studyTimeline?.mitigationApplied
+                            ? "text-rose-355 bg-rose-500/20 border border-rose-500/30 font-bold animate-pulse"
+                            : "text-slate-350 bg-white/5 border border-white/10"
+                        }`}>SELF-REFLECT</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                      <p className="text-[11px] text-slate-400 select-none leading-tight flex-1">Checks Capacity metrics, scales back study matrix by 50% on strain.</p>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className={`text-[9px] font-mono font-bold uppercase px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(3).textClass}`}>{getNodeStatus(3).label}</span>
+                        {failedNodes.includes(3) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAgent(3);
+                            }}
+                            disabled={retryingNode === 3}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500 text-rose-350 hover:text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-sm shrink-0"
+                          >
+                            <RefreshCw className={`w-2.5 h-2.5 ${retryingNode === 3 ? "animate-spin" : ""}`} />
+                            <span>RETRY SYNC</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {simulatedData?.studyTimeline?.mitigationApplied && !loading && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 text-[10px] text-rose-355 flex items-center space-x-1 animate-pulse"
                       >
-                        <div>
-                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Builds custom multiple-choice question batches focused exactly on active modules, referencing official documentation paragraphs as sources.
-                        </div>
-                        <div>
-                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Active curriculum topic index → Verified Mock questions with exact page references.
-                        </div>
+                        <AlertTriangle className="w-3 h-3 text-rose-500 inline shrink-0 animate-bounce" />
+                        <span>Critic loop triggered! Backlink mitigation active.</span>
                       </motion.div>
                     )}
-                  </AnimatePresence>
-                </div>
-              </div>
 
-              {/* Agent 5 Node */}
-              <div 
-                id="topology-node-5" 
-                className="relative flex items-start space-x-3 cursor-help"
-                onMouseEnter={() => setHoveredNode(5)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                  simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                }`}>5</div>
-                <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md ${
-                  activeThinkingNode === 5 || hoveredNode === 5
-                    ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" 
-                    : theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`w-2 h-2 rounded-full ${getNodeStatus(5).dotClass}`} />
-                      <span className={`text-xs font-bold ${activeThinkingNode === 5 || hoveredNode === 5 ? "text-amber-500 font-extrabold" : theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>Manager Insights Agent</span>
+                    {/* Inline parameters overrides panel */}
+                    <AnimatePresence>
+                      {openSettingsNode === 3 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 pt-3 border-t border-slate-500/20 text-xs space-y-3 bg-black/20 p-2.5 rounded-lg text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-cyan-300">Manager Parameter Override</span>
+                            <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.2 rounded font-bold uppercase">System Active</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Execution Mode</label>
+                              <select
+                                value={agentOverrides[3].mode}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    3: { ...prev[3], mode: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="Adaptive">Adaptive Sync</option>
+                                <option value="Aggressive">Aggressive Focus</option>
+                                <option value="Passive">Passive Telemetry</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Sync Priority</label>
+                              <select
+                                value={agentOverrides[3].priority}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    3: { ...prev[3], priority: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="uppercase tracking-wider font-sans">Telemetry Heartbeat Override:</span>
+                              <span className="font-mono text-cyan-400 font-bold">{agentOverrides[3].latencyLimit}ms</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="500"
+                              step="10"
+                              value={agentOverrides[3].latencyLimit}
+                              onChange={(e) => {
+                                setAgentOverrides(prev => ({
+                                  ...prev,
+                                  3: { ...prev[3], latencyLimit: parseInt(e.target.value) }
+                                }));
+                              }}
+                              className="w-full accent-cyan-500 bg-slate-800 rounded h-1 cursor-pointer"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Non-blocking hover floating info-modal */}
+                    <AnimatePresence>
+                      {hoveredNode === 3 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-4 right-4 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-90/95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                        >
+                          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                            <span className="font-mono text-[9px] text-cyan-400 font-bold tracking-widest uppercase">Registry ID: {agentSyncData[3].registryId}</span>
+                            <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse">● HEALTH nominal</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Current Node Health</span>
+                              <span className="text-slate-100 font-semibold font-mono">{agentSyncData[3].healthy}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Operational Mode</span>
+                              <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[3].mode} Mode</span>
+                            </div>
+                          </div>
+                          <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                            <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Input-Output Pipeline</div>
+                            <div className="line-clamp-1"><strong className="text-cyan-400">IN:</strong> {agentSyncData[3].inPipe}</div>
+                            <div className="line-clamp-1"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[3].outPipe}</div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Agent 4 Node */}
+                <div 
+                  id="topology-node-4" 
+                  className="relative flex items-start space-x-3 cursor-pointer select-none"
+                  onMouseEnter={() => setHoveredNode(4)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    setSelectedAgentFilter(selectedAgentFilter === 4 ? null : 4);
+                    setActiveTab("visualizer");
+                  }}
+                >
+                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                    activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                    selectedAgentFilter === 4 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                    failedNodes.includes(4) ? "bg-rose-950/80 text-rose-350 border-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
+                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                  }`}>4</div>
+                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
+                    activeThinkingNode === 4 || hoveredNode === 4
+                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" :
+                    selectedAgentFilter === 4
+                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                    failedNodes.includes(4) && !loading
+                      ? "border-rose-500/35 bg-rose-500/5 text-slate-205" :
+                    theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2 h-2 rounded-full ${getNodeStatus(4).dotClass}`} />
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-455 shrink-0" />
+                        <span className={`text-xs font-semibold transition-colors ${
+                          activeThinkingNode === 4 || hoveredNode === 4 ? "text-amber-500 font-extrabold animate-pulse" : 
+                          selectedAgentFilter === 4 ? "text-cyan-400 font-extrabold" :
+                          "text-inherit"
+                        }`}>Assessment Agent</span>
+                        
+                        {/* Sparkline & Success Rate */}
+                        <div className="flex items-center space-x-1 ml-2 bg-black/10 px-1.5 py-0.5 rounded border border-white/5 shrink-0 scale-95">
+                          {renderTrendIcon(agentSyncData[4].trend, agentSyncData[4].rate)}
+                          {renderSparkline(agentSyncData[4].points)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 ml-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenSettingsNode(openSettingsNode === 4 ? null : 4);
+                          }}
+                          className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                            openSettingsNode === 4 ? "text-cyan-400 animate-spin" : ""
+                          }`}
+                          title="Override operational parameters"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        {hoveredNode === 4 && (
+                          <span className="text-[9px] font-mono text-cyan-400 animate-pulse bg-cyan-950/50 px-1 py-0.2 rounded border border-cyan-500/20">
+                            {selectedAgentFilter === 4 ? "Click to clear filter" : "Click to filter traces"}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold">VERIFIER</span>
+                      </div>
                     </div>
-                    <span className="text-[9px] font-mono font-bold text-indigo-405 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">ANONYMOUS</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className={`text-[11px] ${labelClass} select-none leading-tight`}>Analyzes team progress while completely stripping all employee PII.</p>
-                    <span className={`text-[9px] font-mono font-bold uppercase shrink-0 px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(5).textClass}`}>{getNodeStatus(5).label}</span>
-                  </div>
+                    <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                      <p className="text-[11px] text-slate-400 select-none leading-tight flex-1">Autonomously drafts exams and validates correctness securely.</p>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className={`text-[9px] font-mono font-bold uppercase px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(4).textClass}`}>{getNodeStatus(4).label}</span>
+                        {failedNodes.includes(4) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAgent(4);
+                            }}
+                            disabled={retryingNode === 4}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 border border-rose-500/45 hover:bg-rose-500/30 text-rose-300 hover:text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-sm shrink-0 animate-bounce"
+                            title="Click to resolve and sync agent manually"
+                          >
+                            <RefreshCw className={`w-2 h-2.5 ${retryingNode === 4 ? "animate-spin" : ""}`} />
+                            <span>RETRY SYNC</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-                  {/* Node Hover Interactive Details */}
-                  <AnimatePresence>
-                    {hoveredNode === 5 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2.5 pt-2.5 border-t border-dashed border-slate-500/20 text-[10.5px] space-y-1 text-left"
-                      >
-                        <div>
-                          <strong className="text-cyan-400 font-semibold font-sans">Role:</strong> Pools current team statuses together to report general upskilling velocity to high-level managers, anonymizing personal usernames.
-                        </div>
-                        <div>
-                          <strong className="text-indigo-400 font-semibold font-sans">Input → Output:</strong> Learner timelines & capacity history lists → Multi-user metadata grid and compliance reviews.
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                    {/* Inline parameters overrides panel */}
+                    <AnimatePresence>
+                      {openSettingsNode === 4 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 pt-3 border-t border-slate-500/20 text-xs space-y-3 bg-black/20 p-2.5 rounded-lg text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-cyan-300">Manager Parameter Override</span>
+                            <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.2 rounded font-bold uppercase">System Active</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Execution Mode</label>
+                              <select
+                                value={agentOverrides[4].mode}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    4: { ...prev[4], mode: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="Adaptive">Adaptive Sync</option>
+                                <option value="Aggressive">Aggressive Focus</option>
+                                <option value="Passive">Passive Telemetry</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Sync Priority</label>
+                              <select
+                                value={agentOverrides[4].priority}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    4: { ...prev[4], priority: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="uppercase tracking-wider font-sans">Telemetry Heartbeat Override:</span>
+                              <span className="font-mono text-cyan-400 font-bold">{agentOverrides[4].latencyLimit}ms</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="500"
+                              step="10"
+                              value={agentOverrides[4].latencyLimit}
+                              onChange={(e) => {
+                                setAgentOverrides(prev => ({
+                                  ...prev,
+                                  4: { ...prev[4], latencyLimit: parseInt(e.target.value) }
+                                }));
+                              }}
+                              className="w-full accent-cyan-500 bg-slate-800 rounded h-1 cursor-pointer"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Non-blocking hover floating info-modal */}
+                    <AnimatePresence>
+                      {hoveredNode === 4 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-4 right-4 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-90/95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                        >
+                          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                            <span className="font-mono text-[9px] text-cyan-400 font-bold tracking-widest uppercase">Registry ID: {agentSyncData[4].registryId}</span>
+                            <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse">● HEALTH nominal</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Current Node Health</span>
+                              <span className="text-slate-100 font-semibold font-mono">{agentSyncData[4].healthy}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Operational Mode</span>
+                              <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[4].mode} Mode</span>
+                            </div>
+                          </div>
+                          <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                            <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Input-Output Pipeline</div>
+                            <div className="line-clamp-1"><strong className="text-cyan-400">IN:</strong> {agentSyncData[4].inPipe}</div>
+                            <div className="line-clamp-1"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[4].outPipe}</div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
-              </div>
 
-            </div>
+                {/* Agent 5 Node */}
+                <div 
+                  id="topology-node-5" 
+                  className="relative flex items-start space-x-3 cursor-pointer select-none"
+                  onMouseEnter={() => setHoveredNode(5)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    setSelectedAgentFilter(selectedAgentFilter === 5 ? null : 5);
+                    setActiveTab("visualizer");
+                  }}
+                >
+                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                    activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                    selectedAgentFilter === 5 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                  }`}>5</div>
+                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
+                    activeThinkingNode === 5 || hoveredNode === 5
+                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205 animate-none" :
+                    selectedAgentFilter === 5
+                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                    theme === "dark" 
+                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2 h-2 rounded-full ${getNodeStatus(5).dotClass}`} />
+                        <Users className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                        <span className={`text-xs font-bold transition-colors ${
+                          activeThinkingNode === 5 || hoveredNode === 5 ? "text-amber-500 font-extrabold" : 
+                          selectedAgentFilter === 5 ? "text-cyan-400 font-extrabold" :
+                          theme === "dark" ? "text-slate-200" : "text-slate-800"
+                        }`}>Manager Insights Agent</span>
+                        
+                        {/* Sparkline & Success Rate */}
+                        <div className="flex items-center space-x-1 ml-2 bg-black/10 px-1.5 py-0.5 rounded border border-white/5 shrink-0 scale-95">
+                          {renderTrendIcon(agentSyncData[5].trend, agentSyncData[5].rate)}
+                          {renderSparkline(agentSyncData[5].points)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 ml-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenSettingsNode(openSettingsNode === 5 ? null : 5);
+                          }}
+                          className={`p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all ${
+                            openSettingsNode === 5 ? "text-cyan-400 animate-spin" : ""
+                          }`}
+                          title="Override operational parameters"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        {hoveredNode === 5 && (
+                          <span className="text-[9px] font-mono text-cyan-400 animate-pulse bg-cyan-950/50 px-1 py-0.2 rounded border border-cyan-500/20">
+                            {selectedAgentFilter === 5 ? "Click to clear filter" : "Click to filter traces"}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-mono font-bold text-indigo-405 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">ANONYMOUS</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                      <p className={`text-[11px] ${labelClass} select-none leading-tight flex-1`}>Analyzes team progress while completely stripping all employee PII.</p>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className={`text-[9px] font-mono font-bold uppercase px-1 py-0.2 rounded bg-slate-500/5 ${getNodeStatus(5).textClass}`}>{getNodeStatus(5).label}</span>
+                        {failedNodes.includes(5) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAgent(5);
+                            }}
+                            disabled={retryingNode === 5}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500 text-rose-350 hover:text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-sm shrink-0"
+                          >
+                            <RefreshCw className={`w-2.5 h-2.5 ${retryingNode === 5 ? "animate-spin" : ""}`} />
+                            <span>RETRY SYNC</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inline parameters overrides panel */}
+                    <AnimatePresence>
+                      {openSettingsNode === 5 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 pt-3 border-t border-slate-500/20 text-xs space-y-3 bg-black/20 p-2.5 rounded-lg text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-cyan-300">Manager Parameter Override</span>
+                            <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.2 rounded font-bold uppercase">System Active</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Execution Mode</label>
+                              <select
+                                value={agentOverrides[5].mode}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    5: { ...prev[5], mode: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="Adaptive">Adaptive Sync</option>
+                                <option value="Aggressive">Aggressive Focus</option>
+                                <option value="Passive">Passive Telemetry</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 font-sans">Sync Priority</label>
+                              <select
+                                value={agentOverrides[5].priority}
+                                onChange={(e) => {
+                                  setAgentOverrides(prev => ({
+                                    ...prev,
+                                    5: { ...prev[5], priority: e.target.value as any }
+                                  }));
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[11px] font-mono text-slate-205 focus:outline-none focus:border-cyan-500"
+                              >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="uppercase tracking-wider font-sans">Telemetry Heartbeat Override:</span>
+                              <span className="font-mono text-cyan-400 font-bold">{agentOverrides[5].latencyLimit}ms</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="500"
+                              step="10"
+                              value={agentOverrides[5].latencyLimit}
+                              onChange={(e) => {
+                                setAgentOverrides(prev => ({
+                                  ...prev,
+                                  5: { ...prev[5], latencyLimit: parseInt(e.target.value) }
+                                }));
+                              }}
+                              className="w-full accent-cyan-500 bg-slate-800 rounded h-1 cursor-pointer"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Non-blocking hover floating info-modal */}
+                    <AnimatePresence>
+                      {hoveredNode === 5 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-4 right-4 z-[99] mb-3 p-3.5 backdrop-blur-xl bg-slate-90/95 dark:bg-slate-950/95 border border-cyan-500/40 rounded-xl shadow-[0_4px_25px_rgba(6,182,212,0.35)] text-left space-y-2 pointer-events-none text-slate-100"
+                        >
+                          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                            <span className="font-mono text-[9px] text-cyan-400 font-bold tracking-widest uppercase">Registry ID: {agentSyncData[5].registryId}</span>
+                            <span className="font-mono text-[8px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1 rounded animate-pulse">● HEALTH nominal</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Current Node Health</span>
+                              <span className="text-slate-100 font-semibold font-mono">{agentSyncData[5].healthy}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-sans text-[8.5px] block font-medium uppercase tracking-wider">Operational Mode</span>
+                              <span className="text-slate-100 font-semibold font-mono uppercase text-cyan-300">{agentOverrides[5].mode} Mode</span>
+                            </div>
+                          </div>
+                          <div className="text-[9.5px] bg-white/5 p-1.5 rounded border border-white/5 font-mono text-slate-300">
+                            <div className="mb-0.5 text-[8.5px] text-slate-400 uppercase font-sans font-bold">Active Input-Output Pipeline</div>
+                            <div className="line-clamp-1"><strong className="text-cyan-400">IN:</strong> {agentSyncData[5].inPipe}</div>
+                            <div className="line-clamp-1"><strong className="text-indigo-400">OUT:</strong> {agentSyncData[5].outPipe}</div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
 
         </section>
@@ -1963,22 +3032,65 @@ export default function App() {
                     Below is the live execution outputs generated sequentially by Python's `sys.stdout` stream, demonstrating real token trace statements, tool transitions, and self-reflection.
                   </p>
 
+                  {selectedAgentFilter !== null && (
+                    <div className="flex items-center space-x-2 text-[10.5px] mb-3 px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/20 text-cyan-300">
+                      <Terminal className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                      <span>Filtered standard outputs for <strong>Agent {selectedAgentFilter}</strong>. Click "Clear Trace Filter" to see full graph outputs.</span>
+                      <button 
+                        onClick={() => setSelectedAgentFilter(null)}
+                        className="ml-auto underline font-bold cursor-pointer hover:text-cyan-205 transition"
+                      >
+                        Clear Trace Filter
+                      </button>
+                    </div>
+                  )}
+
                   <div className="p-4 bg-black/40 rounded-xl border border-white/10 h-[480px] overflow-y-auto space-y-2 select-text font-mono text-cyan-200/90 leading-relaxed scrollbar-thin">
-                    {pythonLogs ? pythonLogs.split("\n").map((line, i) => (
-                      <div key={i} className="whitespace-pre-wrap">
-                        {line.startsWith("---") || line.startsWith("===") ? (
-                          <span className="text-indigo-350 font-bold">{line}</span>
-                        ) : line.includes("[Core]") ? (
-                          <span className="text-teal-350">{line}</span>
-                        ) : line.includes("WARNING") ? (
-                          <span className="text-rose-400 underline font-semibold">{line}</span>
-                        ) : (
-                          <span>{line}</span>
-                        )}
-                      </div>
-                    )) : (
-                      <div className="text-slate-500 italic">No output logs generated. Click 'Execute Simulation' to run the multi-agent track.</div>
-                    )}
+                    {(() => {
+                      if (!pythonLogs) {
+                        return <div className="text-slate-500 italic">No output logs generated. Click 'Execute Simulation' to run the multi-agent track.</div>;
+                      }
+
+                      const lines = pythonLogs.split("\n");
+                      const filteredLines = lines.filter(line => {
+                        if (selectedAgentFilter === null) return true;
+                        if (line.startsWith("---") || line.startsWith("===") || line.trim() === "") return true;
+                        
+                        const lowerLine = line.toLowerCase();
+                        switch (selectedAgentFilter) {
+                          case 1:
+                            return lowerLine.includes("pathcurator") || lowerLine.includes("curator") || lowerLine.includes("foundry") || lowerLine.includes("match iq");
+                          case 2:
+                            return lowerLine.includes("studyplangen") || lowerLine.includes("planner") || lowerLine.includes("timeline") || lowerLine.includes("studyday") || lowerLine.includes("calendar");
+                          case 3:
+                            return lowerLine.includes("capacitycritic") || lowerLine.includes("critic") || lowerLine.includes("mitigation") || lowerLine.includes("stress") || lowerLine.includes("workload");
+                          case 4:
+                            return lowerLine.includes("assessmentverifier") || lowerLine.includes("verifier") || lowerLine.includes("question") || lowerLine.includes("assessment");
+                          case 5:
+                            return lowerLine.includes("managerreporter") || lowerLine.includes("insights") || lowerLine.includes("anonymized") || lowerLine.includes("pii") || lowerLine.includes("team-b");
+                          default:
+                            return true;
+                        }
+                      });
+
+                      if (filteredLines.length === 0) {
+                        return <div className="text-slate-500 italic p-2">No trace lines matched the selected agent filter.</div>;
+                      }
+
+                      return filteredLines.map((line, i) => (
+                        <div key={i} className="whitespace-pre-wrap">
+                          {line.startsWith("---") || line.startsWith("===") ? (
+                            <span className="text-indigo-350 font-bold">{line}</span>
+                          ) : line.includes("[Core]") ? (
+                            <span className="text-teal-350">{line}</span>
+                          ) : line.includes("WARNING") ? (
+                            <span className="text-rose-400 underline font-semibold">{line}</span>
+                          ) : (
+                            <span>{line}</span>
+                          )}
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </motion.div>
               )}
