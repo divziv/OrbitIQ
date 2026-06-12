@@ -205,6 +205,18 @@ export default function App() {
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<number | null>(null);
   const [failedNodes, setFailedNodes] = useState<number[]>([]);
   const [retryingNode, setRetryingNode] = useState<number | null>(null);
+  const [retryingNodes, setRetryingNodes] = useState<number[]>([]);
+  const [topologyFilter, setTopologyFilter] = useState<"all" | "healthy" | "attention">("all");
+  const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
+  const [hoveredLegendSeries, setHoveredLegendSeries] = useState<"Meeting" | "Deep Work" | null>(null);
+
+  const isNodeFilterActive = (nodeId: number) => {
+    if (topologyFilter === "all") return true;
+    const isAttention = failedNodes.includes(nodeId) || retryingNode === nodeId || retryingNodes.includes(nodeId);
+    if (topologyFilter === "healthy") return !isAttention;
+    if (topologyFilter === "attention") return isAttention;
+    return true;
+  };
 
   // Custom agent parameter states and horizontal full flowchart mode
   const [deepDiveMode, setDeepDiveMode] = useState<boolean>(false);
@@ -231,6 +243,14 @@ export default function App() {
       setFailedNodes(prev => prev.filter(n => n !== nodeIndex));
       setRetryingNode(null);
     }, 1200);
+  };
+
+  const handleResetAllAgents = () => {
+    setFailedNodes([]);
+    setRetryingNodes([1, 2, 3, 4, 5]);
+    setTimeout(() => {
+      setRetryingNodes([]);
+    }, 1500);
   };
 
   const renderSparkline = (points: number[]) => {
@@ -323,7 +343,7 @@ export default function App() {
   }, [loading]);
 
   const getNodeStatus = (nodeIndex: number) => {
-    if (retryingNode === nodeIndex) {
+    if (retryingNode === nodeIndex || retryingNodes.includes(nodeIndex)) {
       return {
         label: "Syncing...",
         dotClass: "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-spin",
@@ -427,25 +447,29 @@ export default function App() {
 
   const handleDownloadWorkIQCsv = () => {
     if (!simulatedData) return;
-    const telemetry = simulatedData.telemetryIq;
-    const csvContent = [
-      ["Metric", "Value", "Week Reference"],
-      ["Reporting Week", telemetry.reportingWeek, "Current"],
-      ["Meeting Hours", meetingHours.toString(), "Current"],
-      ["Deep Work Hours", telemetry.deepWorkHours.toString(), "Current"],
-      ["Incident Tickets Open", telemetry.averageIncidentCount.toString(), "Current"],
-      [],
-      ["Historical Balancing", "Meeting Hours", "Deep Work Hours"],
-      ...rechartData4Weeks.map(item => [item.week, item["Meeting Hours"].toString(), item["Deep Work Hours"].toString()])
-    ].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+    setIsExportingCsv(true);
+    setTimeout(() => {
+      const telemetry = simulatedData.telemetryIq;
+      const csvContent = [
+        ["Metric", "Value", "Week Reference"],
+        ["Reporting Week", telemetry.reportingWeek, "Current"],
+        ["Meeting Hours", meetingHours.toString(), "Current"],
+        ["Deep Work Hours", telemetry.deepWorkHours.toString(), "Current"],
+        ["Incident Tickets Open", telemetry.averageIncidentCount.toString(), "Current"],
+        [],
+        ["Historical Balancing", "Meeting Hours", "Deep Work Hours"],
+        ...rechartData4Weeks.map(item => [item.week, item["Meeting Hours"].toString(), item["Deep Work Hours"].toString()])
+      ].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `WorkIQ_Workload_Telemetry_${telemetry.reportingWeek}.csv`);
-    link.click();
-    URL.revokeObjectURL(url);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `WorkIQ_Workload_Telemetry_${telemetry.reportingWeek}.csv`);
+      link.click();
+      URL.revokeObjectURL(url);
+      setIsExportingCsv(false);
+    }, 1000);
   };
 
   const handleExportToPDF = () => {
@@ -605,6 +629,51 @@ export default function App() {
     handleRunSimulation();
     loadPythonCode();
   }, []);
+
+  // Keyboard navigation for simulation: 'R' to run, 'T' to toggle theme, left/right arrows to cycle weeks
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target && (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === "r") {
+        e.preventDefault();
+        if (!loading) {
+          handleRunSimulation();
+        }
+      } else if (key === "t") {
+        e.preventDefault();
+        toggleTheme();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (simulatedData?.studyTimeline?.weeks) {
+          const minWeek = 1;
+          setInspectWeek(prev => Math.max(minWeek, prev - 1));
+        }
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (simulatedData?.studyTimeline?.weeks) {
+          const maxWeek = simulatedData.studyTimeline.weeks.length;
+          setInspectWeek(prev => Math.min(maxWeek, prev + 1));
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [loading, simulatedData, toggleTheme]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(pythonCode);
@@ -865,11 +934,32 @@ export default function App() {
                             {/* Core Multi-Agent Topology State Graph Visualizer */}
           <div id="state-topology-card" className={`${cardBgClass} backdrop-blur-md rounded-2xl p-5 relative`}>
             <div className="flex items-center justify-between mb-4 border-b border-dashed border-slate-500/10 pb-3 flex-wrap gap-2">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2.5 flex-wrap gap-1.5">
                 <Cpu className={`w-5 h-5 ${theme === "dark" ? "text-indigo-300" : "text-indigo-600"}`} />
                 <h3 className={`font-semibold text-sm tracking-wide uppercase ${theme === "dark" ? "text-white" : "text-slate-900"}`}>State Routing Topology</h3>
+                {failedNodes.length > 0 && (
+                  <span id="anomaly-alert-badge" className="flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-rose-500/15 text-rose-450 border border-rose-500/30 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                    <AlertTriangle className="w-2.5 h-2.5 shrink-0 text-rose-500" />
+                    <span>Anomaly Alert ({failedNodes.length})</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
+                {/* Reset All Agents Button */}
+                <button
+                  id="reset-all-agents-btn"
+                  onClick={handleResetAllAgents}
+                  className={`text-[10px] font-mono font-bold px-3 py-1 rounded-lg border cursor-pointer transition-all flex items-center space-x-1.5 uppercase ${
+                    theme === "dark"
+                      ? "bg-slate-800 hover:bg-slate-700/80 text-slate-200 border-white/5 hover:border-white/10"
+                      : "bg-slate-200 hover:bg-slate-300 text-slate-700 border-slate-300 hover:border-slate-400"
+                  }`}
+                  title="Clear failed node list and sync every agent simultaneously"
+                >
+                  <RefreshCw className={`w-3 h-3 text-emerald-450 ${retryingNodes.length > 0 ? "animate-spin" : ""}`} />
+                  <span>Reset All Agents</span>
+                </button>
+
                 {/* Deep Dive Mode Toggle */}
                 <button
                   onClick={() => setDeepDiveMode(!deepDiveMode)}
@@ -898,19 +988,71 @@ export default function App() {
               OrbitIQ coordinates five isolated reasoning agents in a state-graph pattern. {deepDiveMode ? "Showing deep-dive pipeline flow with critical routing paths highlighted. Click gear icon to set parameters." : "Click nodes to filter logs, or trigger retries to sync. Hover for registry details."}
             </p>
 
+            {/* Global Node Health Filter Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-dashed border-slate-500/15 pb-4">
+              <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${theme === "dark" ? "text-slate-400" : "text-slate-650"}`}>
+                Global Topography Filter:
+              </span>
+              <div className={`p-1 rounded-xl border flex items-center space-x-1 ${
+                theme === "dark" ? "bg-black/25 border-white/5" : "bg-slate-100/90 border-slate-205"
+              }`}>
+                <button
+                  id="filter-nodes-all"
+                  onClick={() => setTopologyFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all duration-205 cursor-pointer ${
+                    topologyFilter === "all"
+                      ? "bg-cyan-500 text-slate-950 shadow-md font-extrabold"
+                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-100" : "text-slate-600 hover:text-slate-900"}`
+                  }`}
+                >
+                  All (5)
+                </button>
+                <button
+                  id="filter-nodes-healthy"
+                  onClick={() => setTopologyFilter("healthy")}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all duration-205 cursor-pointer flex items-center space-x-1 ${
+                    topologyFilter === "healthy"
+                      ? "bg-emerald-500 text-slate-950 shadow-md font-extrabold"
+                      : `${theme === "dark" ? "text-slate-400 hover:text-slate-100" : "text-slate-600 hover:text-slate-900"}`
+                  }`}
+                >
+                  <CheckCircle className="w-3.5 h-3.5 text-current shrink-0" />
+                  <span>Healthy ({5 - failedNodes.length})</span>
+                </button>
+                <button
+                  id="filter-nodes-attention"
+                  onClick={() => setTopologyFilter("attention")}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all duration-300 cursor-pointer flex items-center space-x-1 relative ${
+                    topologyFilter === "attention"
+                      ? "bg-rose-500 text-slate-950 shadow-md font-extrabold"
+                      : `${theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-650 hover:text-rose-600"}`
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-current shrink-0" />
+                  <span>Attention ({failedNodes.length})</span>
+                  {failedNodes.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {deepDiveMode ? (
               /* HORIZONTAL FLOW CHART VIEW */
               <div className="py-2 overflow-x-auto scrollbar-thin">
                 <div className="min-w-[800px] flex items-stretch justify-between relative py-6 px-1 gap-2">
-                  {[1, 2, 3, 4, 5].map((nodeId, idx) => {
+                  {[1, 2, 3, 4, 5].filter(nodeId => isNodeFilterActive(nodeId)).map((nodeId, idx, filteredArr) => {
                     const isThinking = activeThinkingNode === nodeId;
                     const isActiveFilter = selectedAgentFilter === nodeId;
                     const isFailed = failedNodes.includes(nodeId);
                     const isHovered = hoveredNode === nodeId;
                     const isOverrideOpen = openSettingsNode === nodeId;
                     
-                    // Critical Path highlight: Node 1 -> Node 2 -> Node 3 -> Node 4 represent the high-demand pipeline
-                    const isCriticalPathNext = nodeId < 5;
+                    // Connected path indicator: exists if there's a subsequent visible node
+                    const isCriticalPathNext = idx < filteredArr.length - 1;
 
                     return (
                       <React.Fragment key={nodeId}>
@@ -925,6 +1067,13 @@ export default function App() {
                             setActiveTab("visualizer");
                           }}
                         >
+                          {isThinking && (
+                            <motion.div
+                              layoutId="activeThinkingGlowHorizontal"
+                              className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                              transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                            />
+                          )}
                           <div className={`h-full flex flex-col justify-between backdrop-blur-sm p-3 rounded-xl shadow-md transition-all duration-200 border cursor-pointer ${
                             isThinking || isHovered
                               ? "border-amber-500/75 bg-amber-500/5 shadow-[0_0_12px_rgba(245,158,11,0.1)]" :
@@ -1110,33 +1259,56 @@ export default function App() {
                       ease: "easeInOut"
                     }}
                   />
+                  {/* Dynamic traveling data packet particle along the vertical track */}
+                  {activeThinkingNode !== null && (
+                    <motion.div
+                      className="absolute left-0 right-0 w-full bg-gradient-to-b from-transparent via-amber-400 to-transparent blur-[1px] shadow-[0_0_8px_#f59e0b]"
+                      style={{ height: "45px" }}
+                      animate={{
+                        top: 
+                          activeThinkingNode === 1 ? "5%" : 
+                          activeThinkingNode === 2 ? "25%" : 
+                          activeThinkingNode === 3 ? "50%" : 
+                          activeThinkingNode === 4 ? "75%" : "93%"
+                      }}
+                      transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                    />
+                  )}
                 </div>
                 
                 {/* Agent 1 Node */}
-                <div 
-                  id="topology-node-1" 
-                  className="relative flex items-start space-x-3 cursor-pointer select-none"
-                  onMouseEnter={() => setHoveredNode(1)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => {
-                    setSelectedAgentFilter(selectedAgentFilter === 1 ? null : 1);
-                    setActiveTab("visualizer");
-                  }}
-                >
-                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
-                    activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                    selectedAgentFilter === 1 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
-                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>1</div>
-                  <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
-                    activeThinkingNode === 1 || hoveredNode === 1 
-                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
-                    selectedAgentFilter === 1
-                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
-                    theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
-                  }`}>
+                {isNodeFilterActive(1) && (
+                  <div 
+                    id="topology-node-1" 
+                    className="relative flex items-start space-x-3 cursor-pointer select-none"
+                    onMouseEnter={() => setHoveredNode(1)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => {
+                      setSelectedAgentFilter(selectedAgentFilter === 1 ? null : 1);
+                      setActiveTab("visualizer");
+                    }}
+                  >
+                    <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                      activeThinkingNode === 1 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                      selectedAgentFilter === 1 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                      simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                    }`}>1</div>
+                    <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
+                      activeThinkingNode === 1 || hoveredNode === 1 
+                        ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
+                      selectedAgentFilter === 1
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
+                      theme === "dark" 
+                        ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                    }`}>
+                      {activeThinkingNode === 1 && (
+                        <motion.div
+                          layoutId="activeThinkingGlowVertical"
+                          className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                          transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                        />
+                      )}
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-2 h-2 rounded-full ${getNodeStatus(1).dotClass}`} />
@@ -1303,33 +1475,42 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
+                )}
 
                 {/* Agent 2 Node */}
-                <div 
-                  id="topology-node-2" 
-                  className="relative flex items-start space-x-3 cursor-pointer select-none"
-                  onMouseEnter={() => setHoveredNode(2)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => {
-                    setSelectedAgentFilter(selectedAgentFilter === 2 ? null : 2);
-                    setActiveTab("visualizer");
-                  }}
-                >
-                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
-                    activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                    selectedAgentFilter === 2 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
-                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>2</div>
-                  <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
-                    activeThinkingNode === 2 || hoveredNode === 2
-                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
-                    selectedAgentFilter === 2
-                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
-                    theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
-                  }`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
+                {isNodeFilterActive(2) && (
+                  <div 
+                    id="topology-node-2" 
+                    className="relative flex items-start space-x-3 cursor-pointer select-none"
+                    onMouseEnter={() => setHoveredNode(2)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => {
+                      setSelectedAgentFilter(selectedAgentFilter === 2 ? null : 2);
+                      setActiveTab("visualizer");
+                    }}
+                  >
+                    <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                      activeThinkingNode === 2 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                      selectedAgentFilter === 2 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                      simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                    }`}>2</div>
+                    <div className={`flex-1 backdrop-blur-sm p-3.5 rounded-xl shadow-md transition-all duration-205 border relative ${
+                      activeThinkingNode === 2 || hoveredNode === 2
+                        ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)]" :
+                      selectedAgentFilter === 2
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30" :
+                      theme === "dark" 
+                        ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                    }`}>
+                      {activeThinkingNode === 2 && (
+                        <motion.div
+                          layoutId="activeThinkingGlowVertical"
+                          className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                          transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                        />
+                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-2 h-2 rounded-full ${getNodeStatus(2).dotClass}`} />
                         <Calendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -1495,34 +1676,43 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
+                )}
 
                 {/* Agent 3 Node */}
-                <div 
-                  id="topology-node-3" 
-                  className="relative flex items-start space-x-3 cursor-pointer select-none"
-                  onMouseEnter={() => setHoveredNode(3)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => {
-                    setSelectedAgentFilter(selectedAgentFilter === 3 ? null : 3);
-                    setActiveTab("visualizer");
-                  }}
-                >
-                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
-                    activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                    selectedAgentFilter === 3 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
-                    simulatedData?.studyTimeline?.mitigationApplied 
-                      ? "bg-rose-955/80 text-rose-350 border-rose-500" 
-                      : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>3</div>
-                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 shadow-md relative ${
-                    activeThinkingNode === 3 || hoveredNode === 3 ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205" :
-                    selectedAgentFilter === 3
-                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
-                    simulatedData?.studyTimeline?.mitigationApplied 
-                      ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
-                      : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200"
-                  }`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
+                {isNodeFilterActive(3) && (
+                  <div 
+                    id="topology-node-3" 
+                    className="relative flex items-start space-x-3 cursor-pointer select-none"
+                    onMouseEnter={() => setHoveredNode(3)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => {
+                      setSelectedAgentFilter(selectedAgentFilter === 3 ? null : 3);
+                      setActiveTab("visualizer");
+                    }}
+                  >
+                    <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                      activeThinkingNode === 3 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                      selectedAgentFilter === 3 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                      simulatedData?.studyTimeline?.mitigationApplied 
+                        ? "bg-rose-955/80 text-rose-350 border-rose-500" 
+                        : simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                    }`}>3</div>
+                    <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-250 shadow-md relative ${
+                      activeThinkingNode === 3 || hoveredNode === 3 ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205" :
+                      selectedAgentFilter === 3
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                      simulatedData?.studyTimeline?.mitigationApplied 
+                        ? "bg-rose-500/15 border-rose-500/35 shadow-inner" 
+                        : "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200"
+                    }`}>
+                      {activeThinkingNode === 3 && (
+                        <motion.div
+                          layoutId="activeThinkingGlowVertical"
+                          className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                          transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                        />
+                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-2 h-2 rounded-full ${getNodeStatus(3).dotClass}`} />
                         <ShieldCheck className="w-3.5 h-3.5 text-rose-455 shrink-0" />
@@ -1702,36 +1892,45 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
+                )}
 
                 {/* Agent 4 Node */}
-                <div 
-                  id="topology-node-4" 
-                  className="relative flex items-start space-x-3 cursor-pointer select-none"
-                  onMouseEnter={() => setHoveredNode(4)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => {
-                    setSelectedAgentFilter(selectedAgentFilter === 4 ? null : 4);
-                    setActiveTab("visualizer");
-                  }}
-                >
-                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
-                    activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                    selectedAgentFilter === 4 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
-                    failedNodes.includes(4) ? "bg-rose-950/80 text-rose-350 border-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
-                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>4</div>
-                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
-                    activeThinkingNode === 4 || hoveredNode === 4
-                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" :
-                    selectedAgentFilter === 4
-                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
-                    failedNodes.includes(4) && !loading
-                      ? "border-rose-500/35 bg-rose-500/5 text-slate-205" :
-                    theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
-                  }`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
+                {isNodeFilterActive(4) && (
+                  <div 
+                    id="topology-node-4" 
+                    className="relative flex items-start space-x-3 cursor-pointer select-none"
+                    onMouseEnter={() => setHoveredNode(4)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => {
+                      setSelectedAgentFilter(selectedAgentFilter === 4 ? null : 4);
+                      setActiveTab("visualizer");
+                    }}
+                  >
+                    <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                      activeThinkingNode === 4 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                      selectedAgentFilter === 4 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                      failedNodes.includes(4) ? "bg-rose-950/80 text-rose-350 border-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
+                      simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                    }`}>4</div>
+                    <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
+                      activeThinkingNode === 4 || hoveredNode === 4
+                        ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-200" :
+                      selectedAgentFilter === 4
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                      failedNodes.includes(4) && !loading
+                        ? "border-rose-500/35 bg-rose-500/5 text-slate-205" :
+                      theme === "dark" 
+                        ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                    }`}>
+                      {activeThinkingNode === 4 && (
+                        <motion.div
+                          layoutId="activeThinkingGlowVertical"
+                          className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                          transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                        />
+                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-2 h-2 rounded-full ${getNodeStatus(4).dotClass}`} />
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-455 shrink-0" />
@@ -1898,33 +2097,42 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
+                )}
 
                 {/* Agent 5 Node */}
-                <div 
-                  id="topology-node-5" 
-                  className="relative flex items-start space-x-3 cursor-pointer select-none"
-                  onMouseEnter={() => setHoveredNode(5)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => {
-                    setSelectedAgentFilter(selectedAgentFilter === 5 ? null : 5);
-                    setActiveTab("visualizer");
-                  }}
-                >
-                  <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
-                    activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
-                    selectedAgentFilter === 5 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
-                    simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>5</div>
-                  <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
-                    activeThinkingNode === 5 || hoveredNode === 5
-                      ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205 animate-none" :
-                    selectedAgentFilter === 5
-                      ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
-                    theme === "dark" 
-                      ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
-                  }`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
+                {isNodeFilterActive(5) && (
+                  <div 
+                    id="topology-node-5" 
+                    className="relative flex items-start space-x-3 cursor-pointer select-none"
+                    onMouseEnter={() => setHoveredNode(5)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => {
+                      setSelectedAgentFilter(selectedAgentFilter === 5 ? null : 5);
+                      setActiveTab("visualizer");
+                    }}
+                  >
+                    <div className={`absolute -left-5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all duration-300 z-10 ${
+                      activeThinkingNode === 5 ? "bg-amber-500 text-slate-955 border-amber-400 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.5)]" :
+                      selectedAgentFilter === 5 ? "bg-cyan-500 text-slate-955 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse" :
+                      simulatedData ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]" : "bg-white/5 border-white/10 text-slate-500"
+                    }`}>5</div>
+                    <div className={`flex-1 p-3.5 rounded-xl border transition-all duration-200 shadow-md relative ${
+                      activeThinkingNode === 5 || hoveredNode === 5
+                        ? "border-amber-500 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.15)] text-slate-205 animate-none" :
+                      selectedAgentFilter === 5
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-500/30 text-slate-200" :
+                      theme === "dark" 
+                        ? "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-200" 
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-850"
+                    }`}>
+                      {activeThinkingNode === 5 && (
+                        <motion.div
+                          layoutId="activeThinkingGlowVertical"
+                          className="absolute inset-0 rounded-xl border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] pointer-events-none z-10"
+                          transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                        />
+                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-2 h-2 rounded-full ${getNodeStatus(5).dotClass}`} />
                         <Users className="w-3.5 h-3.5 text-pink-400 shrink-0" />
@@ -2090,7 +2298,7 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
-
+                )}
               </div>
             )}
           </div>
@@ -2371,11 +2579,18 @@ export default function App() {
                           <button
                             id="btn-download-telemetry-csv"
                             onClick={handleDownloadWorkIQCsv}
-                            className="px-2 py-0.5 text-[9px] font-bold bg-cyan-600 hover:bg-cyan-550 text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow"
+                            disabled={isExportingCsv}
+                            className={`px-2 py-0.5 text-[9px] font-bold text-white rounded flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow ${
+                              isExportingCsv ? "bg-cyan-700 cursor-not-allowed opacity-80" : "bg-cyan-600 hover:bg-cyan-550"
+                            }`}
                             title="Export raw workload telemetry to Microsoft Excel, Google Sheets, or any CSV reader"
                           >
-                            <Download className="w-2.5 h-2.5" />
-                            <span>CSV</span>
+                            {isExportingCsv ? (
+                              <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                            ) : (
+                              <Download className="w-2.5 h-2.5" />
+                            )}
+                            <span>{isExportingCsv ? "Exporting..." : "CSV"}</span>
                           </button>
                         </div>
                       </div>
@@ -2458,14 +2673,34 @@ export default function App() {
                                 </span>
                               )}
                             </span>
-                            <div className="flex items-center space-x-2 text-[9px] font-mono">
-                              <span className="flex items-center space-x-1">
+                            <div className="flex items-center space-x-2 text-[9px] font-mono select-none">
+                              <span 
+                                className={`flex items-center space-x-1 cursor-pointer transition-all duration-200 px-1 py-0.5 rounded ${
+                                  hoveredLegendSeries === "Meeting" 
+                                    ? "bg-cyan-500/10 scale-105" 
+                                    : hoveredLegendSeries && hoveredLegendSeries !== "Meeting" 
+                                      ? "opacity-40" 
+                                      : "hover:bg-slate-500/10 hover:scale-105"
+                                }`}
+                                onMouseEnter={() => setHoveredLegendSeries("Meeting")}
+                                onMouseLeave={() => setHoveredLegendSeries(null)}
+                              >
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
-                                <span className={labelClass}>Meeting</span>
+                                <span className={`${labelClass} font-semibold`}>Meeting</span>
                               </span>
-                              <span className="flex items-center space-x-1">
+                              <span 
+                                className={`flex items-center space-x-1 cursor-pointer transition-all duration-200 px-1 py-0.5 rounded ${
+                                  hoveredLegendSeries === "Deep Work" 
+                                    ? "bg-emerald-500/10 scale-105" 
+                                    : hoveredLegendSeries && hoveredLegendSeries !== "Deep Work" 
+                                      ? "opacity-40" 
+                                      : "hover:bg-slate-500/10 hover:scale-105"
+                                }`}
+                                onMouseEnter={() => setHoveredLegendSeries("Deep Work")}
+                                onMouseLeave={() => setHoveredLegendSeries(null)}
+                              >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-405 inline-block" />
-                                <span className={labelClass}>Deep Work</span>
+                                <span className={`${labelClass} font-semibold`}>Deep Work</span>
                               </span>
                             </div>
                           </div>
@@ -2525,7 +2760,13 @@ export default function App() {
                                 />
                                 
                                 {/* Meetings Bar Series with Anomaly Glow and High-Fidelity highlight */}
-                                <Bar dataKey="Meeting Hours" radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950}>
+                                <Bar 
+                                  dataKey="Meeting Hours" 
+                                  radius={[3, 3, 0, 0]} 
+                                  isAnimationActive={true} 
+                                  animationDuration={950}
+                                  opacity={hoveredLegendSeries === "Deep Work" ? 0.2 : 1}
+                                >
                                   {rechartData4Weeks.map((entry, index) => {
                                     const isAnomaly = entry["Meeting Hours"] > 20;
                                     const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
@@ -2540,13 +2781,36 @@ export default function App() {
                                   })}
                                 </Bar>
                                 
-                                <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} isAnimationActive={true} animationDuration={950} />
+                                <Bar 
+                                  dataKey="Deep Work Hours" 
+                                  fill={theme === "dark" ? "#10b981" : "#16a34a"} 
+                                  radius={[3, 3, 0, 0]} 
+                                  isAnimationActive={true} 
+                                  animationDuration={950}
+                                  opacity={hoveredLegendSeries === "Meeting" ? 0.2 : 1}
+                                />
                                 
                                 {/* Historical Data Overlay */}
                                 {compareHistorical && (
                                   <>
-                                    <Bar dataKey="Hist. Meeting" fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} strokeWidth={1} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
-                                    <Bar dataKey="Hist. Deep Work" fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} stroke={theme === "dark" ? "#10b981" : "#16a34a"} strokeWidth={1} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                                    <Bar 
+                                      dataKey="Hist. Meeting" 
+                                      fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} 
+                                      stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} 
+                                      strokeWidth={1} 
+                                      strokeDasharray="3 3" 
+                                      radius={[3, 3, 0, 0]} 
+                                      opacity={hoveredLegendSeries === "Deep Work" ? 0.2 : 1}
+                                    />
+                                    <Bar 
+                                      dataKey="Hist. Deep Work" 
+                                      fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} 
+                                      stroke={theme === "dark" ? "#10b981" : "#16a34a"} 
+                                      strokeWidth={1} 
+                                      strokeDasharray="3 3" 
+                                      radius={[3, 3, 0, 0]} 
+                                      opacity={hoveredLegendSeries === "Meeting" ? 0.2 : 1}
+                                    />
                                   </>
                                 )}
                               </BarChart>
@@ -3473,10 +3737,17 @@ export default function App() {
                   <button
                     id="btn-modal-download-csv"
                     onClick={handleDownloadWorkIQCsv}
-                    className="px-2.5 py-1.5 text-xs font-bold bg-cyan-600 hover:bg-cyan-550 text-white rounded-lg flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow"
+                    disabled={isExportingCsv}
+                    className={`px-2.5 py-1.5 text-xs font-bold text-white rounded-lg flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow ${
+                      isExportingCsv ? "bg-cyan-700 cursor-not-allowed opacity-80" : "bg-cyan-600 hover:bg-cyan-550"
+                    }`}
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download CSV</span>
+                    {isExportingCsv ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isExportingCsv ? "Exporting..." : "Download CSV"}</span>
                   </button>
                   <button
                     id="close-telemetry-expanded-modal"
@@ -3555,7 +3826,11 @@ export default function App() {
                           />
                           
                           {/* Meetings Bar Series with Anomaly Glow and High-Fidelity highlight */}
-                          <Bar dataKey="Meeting Hours" radius={[3, 3, 0, 0]}>
+                          <Bar 
+                            dataKey="Meeting Hours" 
+                            radius={[3, 3, 0, 0]}
+                            opacity={hoveredLegendSeries === "Deep Work" ? 0.2 : 1}
+                          >
                             {rechartData4Weeks.map((entry, index) => {
                               const isAnomaly = entry["Meeting Hours"] > 20;
                               const baseColor = theme === "dark" ? "#22d3ee" : "#0284c7";
@@ -3568,35 +3843,96 @@ export default function App() {
                               );
                             })}
                           </Bar>
-                          <Bar dataKey="Deep Work Hours" fill={theme === "dark" ? "#10b981" : "#16a34a"} radius={[3, 3, 0, 0]} />
+                          <Bar 
+                            dataKey="Deep Work Hours" 
+                            fill={theme === "dark" ? "#10b981" : "#16a34a"} 
+                            radius={[3, 3, 0, 0]} 
+                            opacity={hoveredLegendSeries === "Meeting" ? 0.2 : 1}
+                          />
                           
                           {/* Historical Series (Overlay Mode) */}
                           {compareHistorical && (
                             <>
-                              <Bar dataKey="Hist. Meeting" fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} strokeWidth={1.5} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
-                              <Bar dataKey="Hist. Deep Work" fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} stroke={theme === "dark" ? "#10b981" : "#16a34a"} strokeWidth={1.5} strokeDasharray="3 3" radius={[3, 3, 0, 0]} />
+                              <Bar 
+                                dataKey="Hist. Meeting" 
+                                fill={theme === "dark" ? "#1e293b" : "#f1f5f9"} 
+                                stroke={theme === "dark" ? "#06b6d4" : "#0284c7"} 
+                                strokeWidth={1.5} 
+                                strokeDasharray="3 3" 
+                                radius={[3, 3, 0, 0]} 
+                                opacity={hoveredLegendSeries === "Deep Work" ? 0.2 : 1}
+                              />
+                              <Bar 
+                                dataKey="Hist. Deep Work" 
+                                fill={theme === "dark" ? "#0f172a" : "#f0fdf4"} 
+                                stroke={theme === "dark" ? "#10b981" : "#16a34a"} 
+                                strokeWidth={1.5} 
+                                strokeDasharray="3 3" 
+                                radius={[3, 3, 0, 0]} 
+                                opacity={hoveredLegendSeries === "Meeting" ? 0.2 : 1}
+                              />
                             </>
                           )}
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
 
-                    <div className="flex items-center space-x-4 text-[10px] font-mono justify-center mt-3.5 flex-wrap gap-2">
-                      <span className="flex items-center space-x-1.5 ">
+                    <div className="flex items-center space-x-4 text-[10px] font-mono justify-center mt-3.5 flex-wrap gap-2 select-none">
+                      <span 
+                        className={`flex items-center space-x-1.5 cursor-pointer transition-all duration-200 px-1.5 py-0.5 rounded ${
+                          hoveredLegendSeries === "Meeting" 
+                            ? "bg-cyan-500/10 scale-105" 
+                            : hoveredLegendSeries && hoveredLegendSeries !== "Meeting" 
+                              ? "opacity-40" 
+                              : "hover:bg-slate-500/10 hover:scale-105"
+                        }`}
+                        onMouseEnter={() => setHoveredLegendSeries("Meeting")}
+                        onMouseLeave={() => setHoveredLegendSeries(null)}
+                      >
                         <span className="w-2.5 h-2.5 rounded bg-cyan-400 inline-block" />
-                        <span className={labelClass}>Meeting (Current Cycle)</span>
+                        <span className={`${labelClass} font-semibold`}>Meeting (Current Cycle)</span>
                       </span>
-                      <span className="flex items-center space-x-1.5">
+                      <span 
+                        className={`flex items-center space-x-1.5 cursor-pointer transition-all duration-200 px-1.5 py-0.5 rounded ${
+                          hoveredLegendSeries === "Deep Work" 
+                            ? "bg-emerald-500/10 scale-105" 
+                            : hoveredLegendSeries && hoveredLegendSeries !== "Deep Work" 
+                              ? "opacity-40" 
+                              : "hover:bg-slate-500/10 hover:scale-105"
+                        }`}
+                        onMouseEnter={() => setHoveredLegendSeries("Deep Work")}
+                        onMouseLeave={() => setHoveredLegendSeries(null)}
+                      >
                         <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
-                        <span className={labelClass}>Deep Work (Current Cycle)</span>
+                        <span className={`${labelClass} font-semibold`}>Deep Work (Current Cycle)</span>
                       </span>
                       {compareHistorical && (
                         <>
-                          <span className="flex items-center space-x-1.5">
+                          <span 
+                            className={`flex items-center space-x-1.5 cursor-pointer transition-all duration-200 px-1.5 py-0.5 rounded ${
+                              hoveredLegendSeries === "Meeting" 
+                                ? "bg-cyan-500/10 scale-105" 
+                                : hoveredLegendSeries && hoveredLegendSeries !== "Meeting" 
+                                  ? "opacity-40" 
+                                  : "hover:bg-slate-500/10 hover:scale-105"
+                            }`}
+                            onMouseEnter={() => setHoveredLegendSeries("Meeting")}
+                            onMouseLeave={() => setHoveredLegendSeries(null)}
+                          >
                             <span className="w-2.5 h-2.5 rounded bg-cyan-900 border-dashed border border-cyan-400 inline-block animate-pulse" />
                             <span className={labelClass}>Hist. Meeting</span>
                           </span>
-                          <span className="flex items-center space-x-1.5">
+                          <span 
+                            className={`flex items-center space-x-1.5 cursor-pointer transition-all duration-150 px-1.5 py-0.5 rounded ${
+                              hoveredLegendSeries === "Deep Work" 
+                                ? "bg-emerald-500/10 scale-105" 
+                                : hoveredLegendSeries && hoveredLegendSeries !== "Deep Work" 
+                                  ? "opacity-40" 
+                                  : "hover:bg-slate-500/10 hover:scale-105"
+                            }`}
+                            onMouseEnter={() => setHoveredLegendSeries("Deep Work")}
+                            onMouseLeave={() => setHoveredLegendSeries(null)}
+                          >
                             <span className="w-2.5 h-2.5 rounded bg-emerald-950 border-dashed border border-emerald-400 inline-block" />
                             <span className={labelClass}>Hist. Deep Work</span>
                           </span>

@@ -58,4 +58,28 @@
   .text-cyan-400, .text-cyan-500 {
     color: #0369a1 !important;
   }
+
+  /* Physical monochrome override for Work Telemetry Card */
+  #work-telemetry-card {
+    background: #ffffff !important;
+    border: 2px solid #000000 !important;
+    color: #000000 !important;
+  }
+  #work-telemetry-card text,
+  #work-telemetry-card .recharts-text,
+  #work-telemetry-card .recharts-label {
+    fill: #000000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+  #work-telemetry-card .recharts-cartesian-axis-line,
+  #work-telemetry-card .recharts-cartesian-axis-tick-line,
+  #work-telemetry-card .recharts-reference-line-line {
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+  }
+  #work-telemetry-card .recharts-cartesian-grid-horizontal line,
+  #work-telemetry-card .recharts-cartesian-grid-vertical line {
+    stroke: #cbd5e1 !important;
+  }
 }
