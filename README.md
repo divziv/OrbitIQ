@@ -435,6 +435,19 @@ The result is a more informed, context-aware approach to workforce development t
 
 ---
 
+# 📸 Product Screens
+<img width="1920" height="672" alt="OrbitIQ-S1" src="https://github.com/user-attachments/assets/f16e7033-2cfd-450c-b852-a0e88317dba8" />
+<img width="533" height="822" alt="OrbitIQ-S2" src="https://github.com/user-attachments/assets/20a31f63-dd31-494b-a06c-20398c74b87f" />
+<img width="1057" height="707" alt="OrbitIQ-S3" src="https://github.com/user-attachments/assets/1e9c9d80-ee3f-4438-9c41-be5fd574e4b3" />
+<img width="1076" height="461" alt="OrbitIQ-S4" src="https://github.com/user-attachments/assets/0aadc222-511c-408d-abbc-22c54e80b056" />
+<img width="1047" height="637" alt="OrbitIQ-S5" src="https://github.com/user-attachments/assets/e4631e33-413f-43bb-87a0-27bce6b0f26f" />
+<img width="1055" height="721" alt="OrbitIQ-S6" src="https://github.com/user-attachments/assets/264dbc2a-8d7a-40dc-ad62-18f5bbd140c5" />
+<img width="1060" height="727" alt="OrbitIQ-S7" src="https://github.com/user-attachments/assets/df4e9492-fc07-41d1-bdaa-0cf740bc48b0" />
+<img width="1052" height="491" alt="OrbitIQ-S8" src="https://github.com/user-attachments/assets/707ad049-7198-4d52-95a1-b97fed7d8036" />
+<img width="533" height="395" alt="OrbitIQ-S9" src="https://github.com/user-attachments/assets/92c4395b-5336-4db2-aedd-99789ca0fcd3" />
+<img width="1900" height="828" alt="OrbitIQ-S10" src="https://github.com/user-attachments/assets/c521bbd4-400a-4a2c-98c4-dd5b51d1216b" />
+
+
 ## 🏅 Microsoft Agents League Hackathon 2026
 
 **OrbitIQ** showcases how enterprise-grade multi-agent systems can coordinate workforce development, operational awareness, capacity management, and organizational intelligence through structured agent collaboration and explainable decision-making.
