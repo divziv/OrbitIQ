@@ -1,79 +1,442 @@
-# OrbitIQ: Multi-Agent Upskilling & Operational Capacity Sandbox
+# OrbitIQ: AI-Powered Multi-Agent Workforce Capacity & Upskilling Intelligence Platform
 
-Secure corporate upskilling paired with adaptive real-time workload protection, built for managers who lead high-performance engineering squads in live production environments.
-
----
-
-## ⏳ Hackathon Context
-Developed for the **Google AI Studio Multi-Agent hackathon Challenge**, OrbitIQ addresses a critical engineering paradox: **the friction between continuous upskilling and live operational commitments**. It demonstrates how isolated LLM-based reasoning chains can coordinate in a secure state-graph pattern to balance critical training programs directly against real-time telemetry inputs (such as high meeting volumes or urgent on-call incidents) to avoid employee cognitive burnout.
+🏆 **Microsoft Agents League Hackathon 2026 Submission**
+Built during **Microsoft AI Skills Fest 2026**
 
 ---
 
-## 🎯 Core Mission & Inspiration
-Modern engineering managers are often blind to the exact point when intense upskilling (such as preparing for urgent cloud architect certifications) collides with day-to-day operations, triggering severe burnout. 
+## 🔗 Project Links
 
-OrbitIQ's inspiration stems from creating an automated, **"Self-Reflecting" state routing topology** that acts as an advocate for the engineer. It bridges this gap by coordinating 5 isolated specialized agents. They dynamically downscale upskilling tasks when operational telemetry indicators surge (e.g., meeting commitments exceeding 20 hours/week or critical production tickets), keeping team growth optimized and risk-free.
+### Live Demo
 
----
+https://ai.studio/apps/fde5fe00-92fe-4dbe-b5b6-6fba2b88252d?fullscreenApplet=true
 
-## 🚀 Key Actions & Agent Capabilities
-OrbitIQ operates a modular state-graph pattern built on **5 distinct specialized reasoning nodes**:
+### Hackathon Submission
 
-1. **Learning Path Curator Agent (MATCH IQ)**
-   - **Capability**: Processes sanitized learner profile states.
-   - **Action**: Maps specific skill gaps (e.g., database scaling, secure microservices) directly to targeted exam certifications (such as AZ-104 or AZ-400 blueprints).
+https://innovationstudio.microsoft.com/hackathons/Agents-League-Hackathon/project/123638
 
-2. **Study Plan Generator (PLANNER-EXEC)**
-   - **Capability**: Deconstructs heavy blueprints into micro-task sequences.
-   - **Action**: Dynamically organizes weekly and day-by-day learning schedules (covering study times on Mondays, Wednesdays, and Fridays) matching macro-level objectives.
+### Challenge Track
 
-3. **Engagement Critic Agent (SELF-REFLECT)**
-   - **Capability**: Analyzes real-time workweek metrics, high-intensity call logs, and incident levels.
-   - **Action**: Executes capacity-risk safeguards. Triggers automatic **50% upskilling down-scales** if meeting thresholds bypass 20 hours/week, or on critical on-call active production triggers.
-
-4. **Assessment Agent (VERIFIER)**
-   - **Capability**: Designs certification-compliant exam items.
-   - **Action**: Generates interactive multiple-choice question profiles with accurate paragraph-level citation proofs mapped directly to official blueprints.
-
-5. **Manager Insights Agent (ANONYMOUS)**
-   - **Capability**: Synthesizes enterprise-ready team metrics.
-   - **Action**: Aggregates squad upskilling readiness scores and potential capacity risks, strictly sanitizing all PII data prior to delivery.
+**💼 Enterprise Agents – Microsoft Agents League Hackathon 2026**
 
 ---
 
-## 📦 Built With
-OrbitIQ is a full-stack engineering application built with professional tools:
-- **Frontend SPA**: React 18 with Vite and TypeScript (TSX).
-- **Styling**: Tailwind CSS for high-fidelity dark and light themes.
-- **Animations**: Framer Motion (`motion/react`) for smooth route and hover transitions.
-- **Charts / Visualizations**: Recharts for dynamic workload bar chart telemetry overlays, custom-styled SVG nodes.
-- **Icons**: Lucide React.
-- **Backend Service**: Node.js and Express for secure API proxy and file compilation streams.
+# 🚀 Overview
+
+OrbitIQ is a multi-agent workforce intelligence platform designed to help engineering organizations balance employee upskilling initiatives with real-world operational demands.
+
+Modern technical teams are expected to continuously learn new technologies, prepare for certifications, and develop advanced skills while simultaneously supporting production systems, responding to incidents, attending meetings, and delivering business-critical projects.
+
+OrbitIQ addresses this challenge through a coordinated network of specialized AI agents that evaluate learning objectives alongside operational capacity signals. The platform dynamically adjusts workforce development recommendations based on changing workload conditions, helping organizations align employee growth with operational realities.
+
+Rather than treating learning as an isolated activity, OrbitIQ treats workforce development as a continuously adaptive process informed by organizational context.
 
 ---
 
-## 🛠️ Unified Installation & Development
+# 🏆 Microsoft Agents League Hackathon 2026
 
-### 1. Install Dependencies
-Run npm installations:
+OrbitIQ was developed for the **Enterprise Agents** challenge track during **Microsoft AI Skills Fest 2026**.
+
+The project demonstrates how specialized AI agents can collaborate through a structured state-graph architecture to support enterprise workforce planning, employee development, workload awareness, and management intelligence.
+
+The solution aligns with key themes of the challenge:
+
+* Enterprise-ready AI agents
+* Multi-agent orchestration
+* Context-aware decision making
+* Workforce intelligence
+* Responsible AI practices
+* Business-focused automation
+
+---
+
+# 🎯 The Business Challenge
+
+Engineering organizations increasingly invest in certification programs, cloud training, platform engineering initiatives, and continuous learning. At the same time, engineers remain responsible for production support, incident response, operational maintenance, meetings, and project delivery.
+
+These competing priorities create a workforce planning challenge:
+
+> How can organizations continuously upskill employees without overwhelming individuals who are already operating in high-pressure production environments?
+
+Most learning platforms operate independently of operational context. Learning plans are often created once and remain static regardless of changing workloads, incident severity, or team capacity.
+
+As a result:
+
+* Learning schedules become unrealistic during operational spikes.
+* Engineers struggle to balance development goals with delivery commitments.
+* Managers lack visibility into workforce readiness and capacity risks.
+* Upskilling initiatives become disconnected from day-to-day operational realities.
+
+OrbitIQ addresses this challenge through a coordinated multi-agent system that continuously evaluates learning objectives alongside operational signals and adapts recommendations accordingly.
+
+---
+
+# 💡 Enterprise Intelligence Layer
+
+OrbitIQ is designed around enterprise workplace intelligence and operational awareness.
+
+The platform demonstrates how workforce signals and organizational context can be incorporated into agent workflows to produce adaptive recommendations.
+
+Examples of contextual inputs include:
+
+* Meeting commitments
+* Learning objectives
+* Certification goals
+* Operational workload indicators
+* Incident severity levels
+* Workforce readiness metrics
+
+By combining these signals, OrbitIQ enables agents to reason about workforce capacity before recommending learning activities.
+
+This approach moves beyond static training plans and introduces adaptive workforce development workflows.
+
+---
+
+# 🧠 Why Multi-Agent?
+
+OrbitIQ intentionally separates responsibilities across specialized agents rather than relying on a single general-purpose model.
+
+Each agent owns a specific domain of reasoning and contributes specialized outputs to the overall workflow.
+
+| Agent        | Primary Responsibility                          |
+| ------------ | ----------------------------------------------- |
+| MATCH IQ     | Skill-gap analysis and certification alignment  |
+| PLANNER-EXEC | Learning plan generation and scheduling         |
+| SELF-REFLECT | Capacity monitoring and workload protection     |
+| VERIFIER     | Assessment generation and readiness validation  |
+| ANONYMOUS    | Workforce intelligence and management reporting |
+
+This architecture provides several advantages:
+
+* Clear separation of responsibilities
+* More explainable decision making
+* Reduced reasoning complexity
+* Easier validation of outputs
+* Improved maintainability
+* Better alignment with enterprise governance requirements
+
+The resulting system behaves as a coordinated workforce intelligence network rather than a standalone chatbot.
+
+---
+
+# 🔄 Multi-Agent State Graph
+
+OrbitIQ uses a structured state-graph workflow where each agent contributes specialized reasoning before passing sanitized state information to the next stage.
+
+```text
+┌──────────────┐
+│   MATCH IQ   │
+│ Skill Gaps   │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ PLANNER-EXEC │
+│ Study Plans  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ SELF-REFLECT │
+│ Capacity &   │
+│ Risk Review  │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│   VERIFIER   │
+│ Assessment & │
+│ Readiness    │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│  ANONYMOUS   │
+│ Manager      │
+│ Insights     │
+└──────────────┘
+```
+
+### Workflow Sequence
+
+1. Analyze employee skill gaps.
+2. Recommend relevant certification pathways.
+3. Generate structured learning plans.
+4. Evaluate operational workload conditions.
+5. Apply workload protection safeguards when necessary.
+6. Generate readiness assessments.
+7. Produce aggregated management insights.
+
+This creates a self-reflecting feedback loop that continuously balances workforce growth with operational capacity.
+
+---
+
+# 🤖 Agent Architecture
+
+## 1. MATCH IQ — Learning Path Curator
+
+### Purpose
+
+Skill-gap analysis and certification alignment.
+
+### Responsibilities
+
+* Analyze learner profiles
+* Identify technical skill gaps
+* Recommend certification pathways
+* Align learning objectives with certification blueprints
+
+### Example Outputs
+
+* Azure Administrator (AZ-104) recommendations
+* Azure DevOps Engineer (AZ-400) recommendations
+* Cloud architecture learning paths
+* Secure microservices learning tracks
+
+---
+
+## 2. PLANNER-EXEC — Study Plan Generator
+
+### Purpose
+
+Adaptive learning scheduling.
+
+### Responsibilities
+
+* Convert certification objectives into milestones
+* Create weekly study schedules
+* Generate daily learning activities
+* Organize learning priorities
+
+### Outputs
+
+* Weekly learning plans
+* Daily study tasks
+* Learning milestones
+* Structured progression paths
+
+---
+
+## 3. SELF-REFLECT — Capacity Protection Agent
+
+### Purpose
+
+Operational workload awareness and workforce protection.
+
+### Responsibilities
+
+* Monitor workload telemetry
+* Evaluate meeting commitments
+* Analyze operational pressure
+* Assess workforce capacity risk
+
+### Safeguards
+
+When workload thresholds are exceeded:
+
+* Learning intensity can be reduced by up to 50%
+* Study plans can be adjusted dynamically
+* Capacity risks are surfaced before overload occurs
+
+### Example Triggers
+
+* Meeting commitments exceeding 20 hours per week
+* Active critical production incidents
+* Elevated operational workload conditions
+
+---
+
+## 4. VERIFIER — Assessment Agent
+
+### Purpose
+
+Learning validation and readiness measurement.
+
+### Responsibilities
+
+* Generate certification-aligned assessments
+* Create scenario-based questions
+* Evaluate readiness levels
+* Identify learning gaps
+
+### Outputs
+
+* Practice assessments
+* Readiness indicators
+* Knowledge validation exercises
+* Learning progress feedback
+
+---
+
+## 5. ANONYMOUS — Manager Intelligence Agent
+
+### Purpose
+
+Aggregated workforce intelligence.
+
+### Responsibilities
+
+* Aggregate workforce metrics
+* Produce management insights
+* Surface organizational capacity risks
+* Generate privacy-conscious reporting
+
+### Outputs
+
+* Workforce readiness dashboards
+* Capacity risk summaries
+* Team-level insights
+* Organizational reporting views
+
+---
+
+# ✨ Key Capabilities
+
+### Adaptive Learning Planning
+
+Generates structured certification-aligned learning plans based on identified skill gaps and workforce objectives.
+
+### Capacity-Aware Scheduling
+
+Evaluates operational workload indicators before recommending learning intensity.
+
+### Workload Protection Logic
+
+Applies workload safeguards when operational pressure exceeds predefined thresholds.
+
+### Certification Readiness Assessment
+
+Generates assessments designed to validate learning progress and readiness.
+
+### Workforce Intelligence
+
+Provides managers with aggregated workforce insights and organizational visibility.
+
+### Privacy-Conscious Reporting
+
+Separates learner-focused workflows from management reporting workflows.
+
+---
+
+# 📈 Operational Outcomes
+
+OrbitIQ currently demonstrates the following platform capabilities:
+
+* Up to **50% learning workload reduction** when workload protection thresholds are triggered.
+* Dynamic adaptation of study schedules based on operational conditions.
+* Improved visibility into workforce readiness through aggregated reporting.
+* Structured certification preparation workflows.
+* Capacity-aware learning recommendations.
+* Separation of workforce development and management reporting concerns through specialized agents.
+
+These outcomes are driven directly by the platform's multi-agent orchestration model and workload protection mechanisms.
+
+---
+
+# 🔒 Responsible AI & Privacy
+
+OrbitIQ incorporates enterprise-oriented governance principles throughout its architecture.
+
+### Privacy Controls
+
+* Sanitized management reporting
+* Aggregated workforce insights
+* Separation of learner and manager workflows
+* Controlled data sharing between agents
+
+### Responsible AI Principles
+
+* Human-centered decision support
+* Transparent recommendation logic
+* Explainable agent responsibilities
+* Workforce well-being prioritization
+* Capacity-aware workload adjustments
+
+---
+
+# 🛠 Technology Stack
+
+## Frontend
+
+* React 18
+* TypeScript
+* Vite
+* Tailwind CSS
+* Framer Motion
+* Recharts
+* Lucide React
+
+## Backend
+
+* Node.js
+* Express
+
+## Architecture
+
+* Multi-Agent State Graph
+* Adaptive Workflow Routing
+* Capacity-Aware Decision Logic
+* Workforce Intelligence Engine
+* Privacy-Conscious Reporting Pipeline
+
+---
+
+# 📊 Reporting & Export Support
+
+OrbitIQ supports enterprise reporting workflows through:
+
+* JSON telemetry exports
+* CSV exports for Microsoft Excel and Google Sheets
+* High-fidelity PDF reporting
+* Workforce readiness dashboards
+* Capacity risk analytics
+
+---
+
+# 🚀 Local Development
+
+## Install Dependencies
+
 ```bash
 npm install
 ```
 
-### 2. Launch Development Server
-Starts Express + Vite simultaneously:
+## Start Development Environment
+
 ```bash
 npm run dev
 ```
-The server will bind to host `0.0.0.0` on port `3000` automatically. Open `http://localhost:3000` to view the sandboxed dashboard.
 
-### 3. Production Compilation
-Bundle assets and servers for optimized runtimes:
+Application runs at:
+
+```text
+http://localhost:3000
+```
+
+## Production Build
+
 ```bash
 npm run build
 ```
 
 ---
 
-## 🧑‍⚖️ Submission
-Submit ready for deployment on secure Cloud container layers. Provides full GDPR-compliant telemetry exports (JSON format), Microsoft Excel / Google Sheets workload exports (CSV format), and clean printable reporting vectors (high-fidelity PDF layouts).
+# 🌟 Why OrbitIQ Matters
+
+Organizations do not simply need better learning platforms.
+
+They need systems capable of understanding the relationship between workforce development and operational reality.
+
+OrbitIQ demonstrates how specialized AI agents can coordinate learning recommendations, workload analysis, readiness assessment, and management reporting within a unified enterprise workflow.
+
+By combining adaptive planning, workload-aware decision making, and multi-agent orchestration, OrbitIQ transforms workforce development from a static training process into a continuously adaptive system that aligns employee growth with operational commitments.
+
+The result is a more informed, context-aware approach to workforce development that supports both organizational objectives and employee sustainability.
+
+---
+
+## 🏅 Microsoft Agents League Hackathon 2026
+
+**OrbitIQ** showcases how enterprise-grade multi-agent systems can coordinate workforce development, operational awareness, capacity management, and organizational intelligence through structured agent collaboration and explainable decision-making.
+
+**Built for the Enterprise Agents Challenge Track during Microsoft AI Skills Fest 2026.**
